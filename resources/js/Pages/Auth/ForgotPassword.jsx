@@ -19,19 +19,19 @@ export default function ForgotPassword({ status }) {
         <GuestLayout>
             <Head title="Forgot Password" />
 
-            <div className="mb-4 text-sm text-gray-600">
+            <div className="my-4 py-6 text-sm text-gray-600 mx-6">
                 Forgot your password? No problem. Just let us know your email
                 address and we will email you a password reset link that will
                 allow you to choose a new one.
             </div>
 
             {status && (
-                <div className="mb-4 text-sm font-medium text-green-600">
+                <div className="mb-4 text-sm font-medium text-green-600 mx-6">
                     {status}
                 </div>
             )}
 
-            <form onSubmit={submit}>
+            <form onSubmit={submit} className=' mx-6'>
                 <TextInput
                     id="email"
                     type="email"

@@ -3,13 +3,13 @@ import { usePage } from "@inertiajs/react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { 
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-    PieChart, Pie, Cell, LineChart, Line, AreaChart, Area 
+    PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, ComposedChart
 } from 'recharts';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4'];
 
 export default function Dashboard() {
-    const { statistics, chartData, dropdowns, currentYear } = usePage().props;
+    const { statistics, chartData, currentYear } = usePage().props;
 
     // Process chart data
     const monthlyData = chartData?.monthlyRegistrations ? Object.entries(chartData.monthlyRegistrations).map(([month, count]) => ({
@@ -18,47 +18,49 @@ export default function Dashboard() {
     })) : [];
 
     const deliveryData = chartData?.deliveryOutcomes ? Object.entries(chartData.deliveryOutcomes).map(([name, value]) => ({ name, value })) : [];
-    const lgaData = chartData?.lgaAncCompletion ? Object.entries(chartData.lgaAncCompletion).map(([lga, rate]) => ({ lga, rate })) : [];
-    const progressData = chartData?.ancProgress?.months ? chartData.ancProgress.months.map((month, index) => ({
-        month,
-        actual: chartData.ancProgress.actual[index],
-        target: chartData.ancProgress.target[index]
+    const ancCompletionData = chartData?.ancCompletion ? Object.entries(chartData.ancCompletion).map(([name, value]) => ({ name, value })) : [];
+    const literacyData = chartData?.literacyStatus ? Object.entries(chartData.literacyStatus).map(([name, value]) => ({ name, value })) : [];
+    const insuranceData = chartData?.insuranceStatus ? Object.entries(chartData.insuranceStatus).map(([name, value]) => ({ name, value })) : [];
+    const hivData = chartData?.hivStatus ? Object.entries(chartData.hivStatus).map(([name, value]) => ({ name, value })) : [];
+    const fpData = chartData?.familyPlanning ? Object.entries(chartData.familyPlanning).map(([name, value]) => ({ name, value })) : [];
+    const immunizationData = chartData?.immunization ? Object.entries(chartData.immunization).map(([name, value]) => ({ name, value })) : [];
+
+    // Service utilization data
+    const serviceData = chartData?.serviceUtilization ? Object.entries(chartData.serviceUtilization).map(([service, count]) => ({
+        service: service.replace(/_/g, ' '),
+        count: count
     })) : [];
 
     // Check data availability
     const hasData = statistics?.totalRegistered > 0;
-    const hasMonthlyData = monthlyData.length > 0;
-    const hasDeliveryData = deliveryData.length > 0;
-    const hasLgaData = lgaData.length > 0;
-    const hasProgressData = progressData.length > 0;
 
-    // Performance metrics
+    // Performance metrics cards
     const performanceMetrics = [
         {
             title: "Total Registered Patients",
             value: statistics?.totalRegistered?.toLocaleString() || "0",
-            change: "+12%",
+            change: statistics?.trends?.totalPatients ? `${statistics.trends.totalPatients > 0 ? '+' : ''}${statistics.trends.totalPatients}%` : "+0%",
             color: "blue",
             icon: "👥"
         },
         {
             title: "ANC4 Completion Rate",
             value: statistics?.anc4Rate ? `${statistics.anc4Rate}%` : "0%",
-            change: "+8%",
+            change: statistics?.trends?.anc4Rate ? `${statistics.trends.anc4Rate > 0 ? '+' : ''}${statistics.trends.anc4Rate}%` : "+0%",
             color: "green",
             icon: "📊"
         },
         {
             title: "Health Facility Delivery Rate",
             value: statistics?.hospitalDeliveryRate ? `${statistics.hospitalDeliveryRate}%` : "0%",
-            change: "+15%",
+            change: statistics?.trends?.facilityDeliveryRate ? `${statistics.trends.facilityDeliveryRate > 0 ? '+' : ''}${statistics.trends.facilityDeliveryRate}%` : "+0%",
             color: "purple",
             icon: "🏥"
         },
         {
             title: "Live Births Recorded",
             value: statistics?.detailedCounts?.liveBirths?.toLocaleString() || "0",
-            change: "+5%",
+            change: statistics?.trends?.liveBirths ? `${statistics.trends.liveBirths > 0 ? '+' : ''}${statistics.trends.liveBirths}%` : "+0%",
             color: "orange",
             icon: "👶"
         }
@@ -81,7 +83,7 @@ export default function Dashboard() {
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800">State Performance Summary {currentYear}</h1>
-                        <p className="text-gray-600">Comprehensive overview of maternal and child health performance across all facilities</p>
+                        <p className="text-gray-600">Comprehensive overview of maternal and child health performance across all facilities in the state</p>
                     </div>
                     <div className="mt-4 md:mt-0">
                         <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-semibold">
@@ -89,24 +91,6 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
-            </div>
-
-            {/* Performance KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                {performanceMetrics.map((metric, index) => (
-                    <div key={index} className={`bg-white p-6 rounded-xl shadow-md border-l-4 ${getColorClass(metric.color)}`}>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="text-2xl font-bold">{metric.value}</div>
-                                <div className="text-sm text-gray-600 mt-1">{metric.title}</div>
-                            </div>
-                            <div className="text-3xl">{metric.icon}</div>
-                        </div>
-                        <div className={`text-sm font-semibold mt-2 ${metric.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                            {metric.change} from last year
-                        </div>
-                    </div>
-                ))}
             </div>
 
             {!hasData && (
@@ -118,10 +102,51 @@ export default function Dashboard() {
 
             {hasData && (
                 <>
+                    {/* Performance KPIs */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        {performanceMetrics.map((metric, index) => (
+                            <div key={index} className={`bg-white p-6 rounded-xl shadow-md border-l-4 ${getColorClass(metric.color)}`}>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="text-2xl font-bold">{metric.value}</div>
+                                        <div className="text-sm text-gray-600 mt-1">{metric.title}</div>
+                                    </div>
+                                    <div className="text-3xl">{metric.icon}</div>
+                                </div>
+                                <div className={`text-sm font-semibold mt-2 ${metric.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                                    {metric.change} from last year
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* ANC Completion Breakdown */}
+                    <div className="bg-white p-6 rounded-xl shadow-md mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">ANC Completion Breakdown</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="text-center p-4 border rounded-lg bg-blue-50 border-blue-200">
+                                <div className="text-2xl font-bold text-blue-600">{statistics?.ancCompletion?.anc1Only || 0}</div>
+                                <div className="text-sm text-gray-600">Completed ANC1 Only</div>
+                            </div>
+                            <div className="text-center p-4 border rounded-lg bg-green-50 border-green-200">
+                                <div className="text-2xl font-bold text-green-600">{statistics?.ancCompletion?.anc2Only || 0}</div>
+                                <div className="text-sm text-gray-600">Completed ANC2 Only</div>
+                            </div>
+                            <div className="text-center p-4 border rounded-lg bg-yellow-50 border-yellow-200">
+                                <div className="text-2xl font-bold text-yellow-600">{statistics?.ancCompletion?.anc3Only || 0}</div>
+                                <div className="text-sm text-gray-600">Completed ANC3 Only</div>
+                            </div>
+                            <div className="text-center p-4 border rounded-lg bg-purple-50 border-purple-200">
+                                <div className="text-2xl font-bold text-purple-600">{statistics?.ancCompletion?.anc4Completed || 0}</div>
+                                <div className="text-sm text-gray-600">Completed ANC4</div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Main Charts Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                         {/* Monthly Registrations */}
-                        {hasMonthlyData ? (
+                        {monthlyData.length > 0 && (
                             <div className="bg-white p-6 rounded-xl shadow-md">
                                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Monthly ANC Registrations Trend</h3>
                                 <div className="h-80">
@@ -136,17 +161,10 @@ export default function Dashboard() {
                                     </ResponsiveContainer>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="bg-white p-6 rounded-xl shadow-md flex items-center justify-center">
-                                <div className="text-gray-500 text-center">
-                                    <div className="text-lg font-semibold mb-2">No Monthly Data</div>
-                                    <p className="text-sm">No registration trend data available.</p>
-                                </div>
-                            </div>
                         )}
 
                         {/* Delivery Outcomes */}
-                        {hasDeliveryData ? (
+                        {deliveryData.length > 0 && (
                             <div className="bg-white p-6 rounded-xl shadow-md">
                                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Delivery Outcome Distribution</h3>
                                 <div className="h-80">
@@ -172,93 +190,34 @@ export default function Dashboard() {
                                     </ResponsiveContainer>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="bg-white p-6 rounded-xl shadow-md flex items-center justify-center">
-                                <div className="text-gray-500 text-center">
-                                    <div className="text-lg font-semibold mb-2">No Delivery Data</div>
-                                    <p className="text-sm">No delivery outcome data available.</p>
-                                </div>
-                            </div>
                         )}
                     </div>
 
-                    {/* Performance Charts */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                        {/* LGA Performance */}
-                        {hasLgaData ? (
-                            <div className="bg-white p-6 rounded-xl shadow-md">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">ANC Completion by LGA</h3>
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={lgaData} layout="vertical">
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis type="number" domain={[0, 100]} />
-                                            <YAxis type="category" dataKey="lga" width={100} />
-                                            <Tooltip formatter={(value) => `${value}%`} />
-                                            <Bar dataKey="rate" fill="#82ca9d" radius={[0, 4, 4, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
+                    {/* Service Utilization */}
+                    {serviceData.length > 0 && (
+                        <div className="bg-white p-6 rounded-xl shadow-md mb-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Service Utilization</h3>
+                            <div className="h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={serviceData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="service" angle={-45} textAnchor="end" height={80} />
+                                        <YAxis />
+                                        <Tooltip />
+                                        <Bar dataKey="count" fill="#8884d8" />
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
-                        ) : (
-                            <div className="bg-white p-6 rounded-xl shadow-md flex items-center justify-center">
-                                <div className="text-gray-500 text-center">
-                                    <div className="text-lg font-semibold mb-2">No LGA Data</div>
-                                    <p className="text-sm">No LGA performance data available.</p>
-                                </div>
-                            </div>
-                        )}
+                        </div>
+                    )}
 
-                        {/* Progress Towards Target */}
-                        {hasProgressData ? (
-                            <div className="bg-white p-6 rounded-xl shadow-md">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Progress Towards 25% ANC Target</h3>
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={progressData}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="month" />
-                                            <YAxis domain={[0, 100]} />
-                                            <Tooltip formatter={(value) => `${value}%`} />
-                                            <Legend />
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="actual" 
-                                                stroke="#8884d8" 
-                                                strokeWidth={3}
-                                                dot={{ fill: '#8884d8', strokeWidth: 2, r: 4 }}
-                                                activeDot={{ r: 6 }}
-                                            />
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="target" 
-                                                stroke="#ff7300" 
-                                                strokeWidth={2} 
-                                                strokeDasharray="5 5"
-                                                dot={false}
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="bg-white p-6 rounded-xl shadow-md flex items-center justify-center">
-                                <div className="text-gray-500 text-center">
-                                    <div className="text-lg font-semibold mb-2">No Progress Data</div>
-                                    <p className="text-sm">No ANC progress data available.</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Detailed Metrics */}
+                    {/* Detailed Metrics Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                         <div className="bg-white p-6 rounded-xl shadow-md text-center">
                             <div className="text-2xl font-bold text-blue-600 mb-2">
                                 {statistics?.kitsReceivedRate || 0}%
                             </div>
                             <div className="text-sm text-gray-600">Delivery Kits Received</div>
-                            <div className="text-xs text-green-600 mt-1">+8% improvement</div>
                         </div>
 
                         <div className="bg-white p-6 rounded-xl shadow-md text-center">
@@ -266,7 +225,6 @@ export default function Dashboard() {
                                 {statistics?.pnc1Within48hRate || 0}%
                             </div>
                             <div className="text-sm text-gray-600">PNC1 within 48h</div>
-                            <div className="text-xs text-green-600 mt-1">+12% improvement</div>
                         </div>
 
                         <div className="bg-white p-6 rounded-xl shadow-md text-center">
@@ -274,7 +232,6 @@ export default function Dashboard() {
                                 {statistics?.detailedCounts?.hospitalDeliveries?.toLocaleString() || 0}
                             </div>
                             <div className="text-sm text-gray-600">Hospital Deliveries</div>
-                            <div className="text-xs text-green-600 mt-1">+15% increase</div>
                         </div>
 
                         <div className="bg-white p-6 rounded-xl shadow-md text-center">
@@ -282,8 +239,130 @@ export default function Dashboard() {
                                 {statistics?.detailedCounts?.anc4Completed?.toLocaleString() || 0}
                             </div>
                             <div className="text-sm text-gray-600">Completed ANC4</div>
-                            <div className="text-xs text-green-600 mt-1">On track</div>
                         </div>
+                    </div>
+
+                    {/* Additional Charts Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                        {/* Literacy Status */}
+                        {literacyData.length > 0 && (
+                            <div className="bg-white p-6 rounded-xl shadow-md">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Literacy Status</h3>
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie 
+                                                data={literacyData} 
+                                                cx="50%" 
+                                                cy="50%" 
+                                                labelLine={false}
+                                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                                outerRadius={80}
+                                                dataKey="value"
+                                            >
+                                                {literacyData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Insurance Status */}
+                        {insuranceData.length > 0 && (
+                            <div className="bg-white p-6 rounded-xl shadow-md">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Insurance Status</h3>
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie 
+                                                data={insuranceData} 
+                                                cx="50%" 
+                                                cy="50%" 
+                                                labelLine={false}
+                                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                                outerRadius={80}
+                                                dataKey="value"
+                                            >
+                                                {insuranceData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* HIV Status */}
+                        {hivData.length > 0 && (
+                            <div className="bg-white p-6 rounded-xl shadow-md">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4">HIV Testing Results</h3>
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie 
+                                                data={hivData} 
+                                                cx="50%" 
+                                                cy="50%" 
+                                                labelLine={false}
+                                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                                outerRadius={80}
+                                                dataKey="value"
+                                            >
+                                                {hivData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Family Planning and Immunization */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        {/* Family Planning */}
+                        {fpData.length > 0 && (
+                            <div className="bg-white p-6 rounded-xl shadow-md">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Family Planning Methods</h3>
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={fpData} layout="vertical">
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis type="number" />
+                                            <YAxis type="category" dataKey="name" width={100} />
+                                            <Tooltip />
+                                            <Bar dataKey="value" fill="#82ca9d" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Immunization */}
+                        {immunizationData.length > 0 && (
+                            <div className="bg-white p-6 rounded-xl shadow-md">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Immunization Coverage</h3>
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={immunizationData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                                            <YAxis />
+                                            <Tooltip />
+                                            <Bar dataKey="value" fill="#8884d8" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Summary Stats */}
@@ -292,15 +371,15 @@ export default function Dashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="text-center p-4 border rounded-lg">
                                 <div className="text-sm text-gray-600">Total Facilities</div>
-                                <div className="text-xl font-bold text-gray-800">{dropdowns?.phcs?.length || 0}</div>
+                                <div className="text-xl font-bold text-gray-800">{statistics?.totalFacilities || 0}</div>
                             </div>
                             <div className="text-center p-4 border rounded-lg">
                                 <div className="text-sm text-gray-600">LGAs Covered</div>
-                                <div className="text-xl font-bold text-gray-800">{dropdowns?.lgas?.length || 0}</div>
+                                <div className="text-xl font-bold text-gray-800">{statistics?.totalLgas || 0}</div>
                             </div>
                             <div className="text-center p-4 border rounded-lg">
                                 <div className="text-sm text-gray-600">Wards Covered</div>
-                                <div className="text-xl font-bold text-gray-800">{dropdowns?.wards?.length || 0}</div>
+                                <div className="text-xl font-bold text-gray-800">{statistics?.totalWards || 0}</div>
                             </div>
                         </div>
                     </div>

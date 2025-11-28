@@ -237,7 +237,7 @@ export default function Landing({ appName = "Lafiyar Iyali" }) {
 
       {/* Second Sponsor Logo */}
       <div className="flex flex-col items-center">
-        <div className="rounded-full w-32 h-32 flex items-center justify-center overflow-hidden">
+        <div className=" w-45 h-32 flex items-center justify-center overflow-hidden">
           <img 
             src="/nf.jpeg" 
             alt="Nigeria Youth Futures Fund" 

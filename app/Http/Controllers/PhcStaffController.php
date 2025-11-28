@@ -10,9 +10,73 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Carbon\Carbon;
 
 class PhcStaffController extends Controller
 {
+    /**
+     * Show the form for creating a new patient record.
+     */
+    public function create()
+    {
+        $lgas = Lga::all(['id', 'name', 'code']);
+        $wards = Ward::all(['id', 'lga_id', 'name', 'code']);
+        $phcFacilities = Phc::all(['id', 'ward_id', 'clinic_name']);
+
+        return Inertia::render('Phc/CreatePatient', [
+            'lgas' => $lgas,
+            'wards' => $wards,
+            'phcFacilities' => $phcFacilities,
+        ]);
+    }
+
+    /**
+     * Store a new patient record.
+     */
+    public function store(Request $request)
+    {
+        $user = auth()->user();
+        
+        // Check if user has a PHC assigned
+        if (!$user->phc_id) {
+            return redirect()->back()
+                ->with('error', 'Your account is not associated with any PHC facility. Please contact administrator.');
+        }
+
+        $lga = Lga::find($request->lga_id);
+        $ward = Ward::find($request->ward_id);
+
+        if (!$lga || !$ward) {
+            return redirect()->back()->with('error', 'Invalid LGA or Ward selected.');
+        }
+
+        $data = $this->validatePatientData($request);
+
+        return DB::transaction(function () use ($data, $lga, $ward, $user) {
+            
+            // Unique ID Generation: LGA_CODE/WARD_CODE/SERIAL
+            $lga_code = strtoupper(substr($lga->code ?? $lga->name, 0, 3));
+            $ward_code = strtoupper(substr($ward->code ?? $ward->name, 0, 3));
+            
+            $serial = str_pad(
+                Patient::where('lga_id', $data['lga_id'])->where('ward_id', $data['ward_id'])->count() + 1,
+                3,
+                '0',
+                STR_PAD_LEFT
+            );
+            
+            $data['unique_id'] = "{$lga_code}/{$ward_code}/{$serial}";
+            $data['phc_id'] = $user->phc_id;
+
+            // Handle boolean conversions
+            $data = $this->convertBooleanFields($data);
+
+            $patient = Patient::create($data);
+
+            return redirect()->route('phc.create-patient')
+                ->with('success', 'Patient registered successfully! Unique ID: ' . $data['unique_id']);
+        });
+    }
 
     /**
      * Show the form for editing the specified patient.
@@ -36,152 +100,22 @@ class PhcStaffController extends Controller
     }
 
     /**
-     * Generate reports for the facility
+     * Update patient record.
      */
-    public function generateReport(Request $request)
+    public function update(Request $request, $id)
     {
-        $phcId = auth()->user()->phc_id;
+        $patient = Patient::where('phc_id', auth()->user()->phc_id)->findOrFail($id);
         
-        $request->validate([
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'report_type' => 'required|in:pdf_portrait,pdf_landscape,excel,csv',
-            'include_details' => 'boolean',
-            'include_statistics' => 'boolean',
-        ]);
+        $data = $this->validatePatientData($request, true);
+        $data = $this->convertBooleanFields($data);
 
-        // Build query based on date range
-        $query = Patient::where('phc_id', $phcId)
-            ->with(['lga', 'ward', 'healthFacility']);
+        $patient->update($data);
 
-        if ($request->start_date && $request->end_date) {
-            $query->whereBetween('date_of_registration', [
-                $request->start_date,
-                $request->end_date
-            ]);
-        }
-
-        $patients = $query->get();
-        $facility = Phc::find($phcId);
-
-        $data = [
-            'patients' => $patients,
-            'facility' => $facility,
-            'date_range' => [
-                'start' => $request->start_date,
-                'end' => $request->end_date,
-            ],
-            'report_type' => $request->report_type,
-            'include_details' => $request->include_details ?? true,
-            'include_statistics' => $request->include_statistics ?? true,
-            'generated_at' => now()->format('Y-m-d H:i:s'),
-        ];
-
-        // Return different formats based on request
-        switch ($request->report_type) {
-            case 'pdf_portrait':
-                return $this->generatePdfReport($data, 'portrait');
-            case 'pdf_landscape':
-                return $this->generatePdfReport($data, 'landscape');
-            case 'excel':
-                return $this->generateExcelReport($data);
-            case 'csv':
-                return $this->generateCsvReport($data);
-        }
+        return back()->with('success', 'Patient updated successfully!');
     }
 
     /**
-     * Generate PDF report
-     */
-    private function generatePdfReport($data, $orientation = 'portrait')
-    {
-        // You'll need to install and set up a PDF library like DomPDF or Laravel Excel
-        // This is a placeholder implementation
-        return response()->json([
-            'message' => 'PDF generation would be implemented here',
-            'data' => $data
-        ]);
-        
-        // Example implementation with DomPDF:
-        // $pdf = PDF::loadView('reports.facility-pdf', $data)->setPaper('a4', $orientation);
-        // return $pdf->download('facility-report-' . now()->format('Y-m-d') . '.pdf');
-    }
-
-    /**
-     * Generate Excel report
-     */
-    private function generateExcelReport($data)
-    {
-        // You'll need to install and set up Laravel Excel
-        // This is a placeholder implementation
-        return response()->json([
-            'message' => 'Excel generation would be implemented here',
-            'data' => $data
-        ]);
-        
-        // Example implementation with Laravel Excel:
-        // return Excel::download(new FacilityReportExport($data), 'facility-report-' . now()->format('Y-m-d') . '.xlsx');
-    }
-
-    /**
-     * Generate CSV report
-     */
-    private function generateCsvReport($data)
-    {
-        // Simple CSV implementation
-        $fileName = 'facility-report-' . now()->format('Y-m-d') . '.csv';
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
-        ];
-
-        $callback = function() use ($data) {
-            $file = fopen('php://output', 'w');
-            
-            // Add CSV headers
-            fputcsv($file, [
-                'Unique ID', 'Name', 'Age', 'Phone', 'LGA', 'Ward', 
-                'Registration Date', 'EDD', 'ANC Visits', 'Delivery Outcome'
-            ]);
-
-            // Add data rows
-            foreach ($data['patients'] as $patient) {
-                fputcsv($file, [
-                    $patient->unique_id,
-                    $patient->woman_name,
-                    $patient->age,
-                    $patient->phone_number,
-                    $patient->lga->name ?? 'N/A',
-                    $patient->ward->name ?? 'N/A',
-                    $patient->date_of_registration,
-                    $patient->edd,
-                    $this->calculateAncVisits($patient),
-                    $patient->delivery_outcome ?? 'N/A'
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    /**
-     * Calculate total ANC visits for a patient
-     */
-    private function calculateAncVisits($patient)
-    {
-        $visits = 0;
-        if ($patient->anc_visit_1) $visits++;
-        if ($patient->anc_visit_2) $visits++;
-        if ($patient->anc_visit_3) $visits++;
-        if ($patient->anc_visit_4) $visits++;
-        return $visits + ($patient->additional_anc_count ?? 0);
-    }
-
-    /**
-     * Display all patients for this PHC (Dashboard - phc.dashboard).
+     * Display all patients for this PHC (Dashboard).
      */
     public function index(Request $request)
     {
@@ -199,17 +133,17 @@ class PhcStaffController extends Controller
 
         $patients = $query->with(['lga:id,name', 'ward:id,name'])->latest()->paginate(10);
         
-        // Get statistics data (SAME AS statistics() method)
+        // Get statistics data with trend calculations
         $phcStats = $this->getPhcStatistics($phcId);
         
-        // Data needed for the Dashboard component (for display/quick forms)
+        // Data needed for the Dashboard component
         $lgas = Lga::all(['id', 'name', 'code']);
         $wards = Ward::all(['id', 'lga_id', 'name', 'code']);
-        $phcFacilities = Phc::all(['id', 'ward_id', 'clinic_name']); 
+        $phcFacilities = Phc::all(['id', 'ward_id', 'clinic_name']);
 
         return Inertia::render('Phc/Dashboard', [
             'patients' => $patients,
-            'phcStats' => $phcStats, // ADDED: Same statistics data as statistics page
+            'phcStats' => $phcStats,
             'lgas' => $lgas,
             'wards' => $wards,
             'phcFacilities' => $phcFacilities,
@@ -218,49 +152,78 @@ class PhcStaffController extends Controller
     }
 
     /**
-     * Get PHC statistics (reusable method for both dashboard and statistics page)
+     * Display statistics for PHC staff.
      */
-    private function getPhcStatistics($phcId)
+    public function statistics(Request $request)
     {
-        // 1. Core KPIs
-        $totalPatients = Patient::where('phc_id', $phcId)->count();
-        $delivered = Patient::where('phc_id', $phcId)->whereNotNull('date_of_delivery')->count();
-        $anc4Completed = Patient::where('phc_id', $phcId)->where('anc4_completed', true)->count();
-        $liveBirths = Patient::where('phc_id', $phcId)->where('delivery_outcome', 'Live birth')->count();
+        $phcId = auth()->user()->phc_id;
         
-        $deliveryRate = $totalPatients > 0 ? round(($delivered / $totalPatients) * 100) : 0;
-        $anc4Rate = $totalPatients > 0 ? round(($anc4Completed / $totalPatients) * 100) : 0;
+        // Get comprehensive statistics
+        $phcStats = $this->getPhcStatistics($phcId);
         
-        // 2. Data for Chart (Monthly registrations)
-        $monthlyRegData = Patient::where('phc_id', $phcId)
-            ->select(DB::raw('MONTH(date_of_registration) as month'), DB::raw('count(*) as count'))
-            ->whereYear('date_of_registration', now()->year)
-            ->groupBy('month')
-            ->pluck('count', 'month')
-            ->toArray();
+        // Get additional data for charts
+        $patients = Patient::where('phc_id', $phcId)->get();
+        
+        // Enhanced statistics with more details
+        $enhancedStats = [
+            'totalPatients' => $phcStats['totalPatients'],
+            'delivered' => $phcStats['delivered'],
+            'facilityDeliveries' => $phcStats['facilityDeliveries'],
+            'liveBirths' => $phcStats['liveBirths'],
+            'deliveryRate' => $phcStats['deliveryRate'],
+            'facilityDeliveryRate' => $phcStats['facilityDeliveryRate'],
+            'ancCompletion' => $phcStats['ancCompletion'],
+            'pregnancyTracking' => $phcStats['pregnancyTracking'],
+            'monthlyRegistrations' => $phcStats['monthlyRegistrations'],
+            'deliveryOutcomes' => $phcStats['deliveryOutcomes'],
+            'pncIncomplete' => $phcStats['pncIncomplete'] ?? 0,
+            'activePregnancies' => $phcStats['activePregnancies'] ?? 0,
+            'trends' => $phcStats['trends'] ?? [],
             
-        // 3. Simple Delivery Outcome distribution
-        $deliveryOutcomes = Patient::where('phc_id', $phcId)
-            ->select('delivery_outcome', DB::raw('count(*) as count'))
-            ->whereNotNull('delivery_outcome')
-            ->groupBy('delivery_outcome')
-            ->pluck('count', 'delivery_outcome')
-            ->toArray();
-
-        return [
-            'totalPatients' => $totalPatients,
-            'delivered' => $delivered,
-            'anc4Completed' => $anc4Completed,
-            'liveBirths' => $liveBirths,
-            'deliveryRate' => $deliveryRate,
-            'anc4Rate' => $anc4Rate,
-            'monthlyRegistrations' => $monthlyRegData,
-            'deliveryOutcomes' => $deliveryOutcomes,
+            // Additional calculated stats
+            'ancVisitsBreakdown' => $this->getAncVisitsBreakdown($patients),
+            'serviceUtilization' => $this->getServiceUtilization($patients),
+            'timelyPnCRate' => $this->calculateTimelyPnCRate($patients),
+            'immunizationCoverage' => $this->calculateImmunizationCoverage($patients),
         ];
+
+        return Inertia::render('Phc/Statistics', [
+            'phcStats' => $enhancedStats,
+            'filters' => $request->only(['time_range']),
+        ]);
     }
 
     /**
-     * Display records created by staff in their PHC with search and pagination.
+     * Generate reports for PHC staff.
+     */
+    public function generateReport(Request $request)
+    {
+        $phcId = auth()->user()->phc_id;
+        $reportType = $request->input('report_type', 'monthly');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $query = Patient::where('phc_id', $phcId);
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('date_of_registration', [$startDate, $endDate]);
+        }
+
+        $patients = $query->get();
+        $stats = $this->getPhcStatistics($phcId);
+
+        // Return report data (you can format this as CSV, PDF, etc.)
+        return response()->json([
+            'report_type' => $reportType,
+            'period' => $startDate && $endDate ? "$startDate to $endDate" : 'All Time',
+            'statistics' => $stats,
+            'total_records' => $patients->count(),
+            'generated_at' => now()->toDateTimeString(),
+        ]);
+    }
+
+    /**
+     * Display records created by staff in their PHC.
      */
     public function records(Request $request)
     {
@@ -282,7 +245,6 @@ class PhcStaffController extends Controller
             });
         }
         
-        // Paginate and eager load location info
         $patients = $query->with(['lga:id,name', 'ward:id,name'])
                           ->latest()
                           ->paginate(15)
@@ -298,7 +260,7 @@ class PhcStaffController extends Controller
     }
 
     /**
-     * Display all patients across all facilities (PHC staff view with search)
+     * Display all patients across all facilities.
      */
     public function allPatients(Request $request)
     {
@@ -334,7 +296,7 @@ class PhcStaffController extends Controller
     }
 
     /**
-     * View any patient in the system (read-only for PHC staff)
+     * View any patient in the system (read-only for PHC staff).
      */
     public function showAllPatient($id)
     {
@@ -350,7 +312,7 @@ class PhcStaffController extends Controller
     }
 
     /**
-     * Show the form for editing any patient in the system (regardless of facility)
+     * Show the form for editing any patient in the system.
      */
     public function editAnyPatient($id)
     {
@@ -373,223 +335,41 @@ class PhcStaffController extends Controller
     }
 
     /**
-     * Update any patient record in the system (preserves original facility)
+     * Update any patient record in the system.
      */
     public function updateAnyPatient(Request $request, $id)
     {
         $patient = Patient::findOrFail($id);
         
-        $data = $request->validate([
-            'woman_name' => 'required|string|max:255',
-            'age' => 'required|integer|between:15,50',
-            'literacy_status' => 'required|in:Literate,Illiterate,Not sure',
-            'phone_number' => 'nullable|string|max:20',
-            'husband_name' => 'nullable|string|max:255',
-            'husband_phone' => 'nullable|string|max:20',
-            'community' => 'required|string|max:255',
-            'address' => 'required|string|max:255',
-            'lga_id' => 'required|exists:lgas,id',
-            'ward_id' => 'required|exists:wards,id',
-            'health_facility_id' => 'required|exists:phcs,id',
-            'gravida' => 'nullable|integer|min:0',
-            'parity' => 'nullable|integer|min:0',
-            'date_of_registration' => 'required|date',
-            'edd' => 'required|date|after_or_equal:date_of_registration',
-            'anc_visit_1' => 'nullable|date', 'tracked_before_anc1' => 'boolean',
-            'anc_visit_2' => 'nullable|date', 'tracked_before_anc2' => 'boolean',
-            'anc_visit_3' => 'nullable|date', 'tracked_before_anc3' => 'boolean',
-            'anc_visit_4' => 'nullable|date', 'tracked_before_anc4' => 'boolean',
-            'additional_anc_count' => 'nullable|integer|min:0',
-            'place_of_delivery' => 'nullable|string|max:255',
-            'delivery_kits_received' => 'boolean',
-            'type_of_delivery' => 'nullable|string|max:255',
-            'delivery_outcome' => 'nullable|string|max:255',
-            'date_of_delivery' => 'nullable|date',
-            'child_immunization_status' => 'nullable|string|max:255',
-            'fp_interest_postpartum' => 'boolean',
-            'fp_given' => 'boolean',
-            'fp_paid' => 'boolean',
-            'fp_payment_amount' => 'nullable|numeric|min:0',
-            'fp_reason_not_given' => 'nullable|string',
-            'pnc_visit_1' => 'nullable|date',
-            'pnc_visit_2' => 'nullable|date',
-            'health_insurance_status' => 'nullable|string|max:255',
-            'insurance_satisfaction' => 'boolean',
-            'anc_paid' => 'boolean',
-            'anc_payment_amount' => 'nullable|numeric|min:0',
-            'remark' => 'nullable|string',
-            'comments' => 'nullable|string',
-        ]);
+        $data = $this->validatePatientData($request, true);
+        $data = $this->convertBooleanFields($data);
 
-        // Preserve the original facility - don't update phc_id
-        // Remove phc_id from data to prevent changing original registration facility
+        // Preserve the original facility
         if (isset($data['phc_id'])) {
             unset($data['phc_id']);
         }
 
         $patient->update($data);
 
-        // Return to the all patients search page
         return redirect()->route('phc.all-patients')->with('success', 'Patient record updated successfully! Original facility preserved.');
     }
 
     /**
-     * Show the form for creating a new patient record (phc.create-patient).
-     */
-    public function create()
-    {
-        // Fetch data required for the form's cascading dropdowns
-        $lgas = Lga::all(['id', 'name', 'code']);
-        $wards = Ward::all(['id', 'lga_id', 'name', 'code']);
-        $phcFacilities = Phc::all(['id', 'ward_id', 'clinic_name']);
-
-        return Inertia::render('Phc/CreatePatient', [
-            'lgas' => $lgas,
-            'wards' => $wards,
-            'phcFacilities' => $phcFacilities,
-        ]);
-    }
-
-    /**
-     * Store a new patient record (phc.patient.store).
-     */
-    public function store(Request $request)
-    {
-        $lga = Lga::find($request->lga_id);
-        $ward = Ward::find($request->ward_id);
-
-        $data = $request->validate([
-            // --- Core Validation ---
-            'woman_name' => 'required|string|max:255',
-            'age' => 'required|integer|between:15,50',
-            'literacy_status' => 'required|in:Literate,Illiterate,Not sure',
-            'phone_number' => 'nullable|string|max:20',
-            'husband_name' => 'nullable|string|max:255',
-            'husband_phone' => 'nullable|string|max:20',
-            'community' => 'required|string|max:255',
-            'address' => 'required|string|max:255',
-            'lga_id' => 'required|exists:lgas,id',
-            'ward_id' => 'required|exists:wards,id',
-            'health_facility_id' => 'required|exists:phcs,id',
-            'gravida' => 'nullable|integer|min:0',
-            'parity' => 'nullable|integer|min:0',
-            'date_of_registration' => 'required|date',
-            'edd' => 'required|date|after_or_equal:date_of_registration',
-            'anc_visit_1' => 'nullable|date', 'tracked_before_anc1' => 'boolean',
-            'anc_visit_2' => 'nullable|date', 'tracked_before_anc2' => 'boolean',
-            'anc_visit_3' => 'nullable|date', 'tracked_before_anc3' => 'boolean',
-            'anc_visit_4' => 'nullable|date', 'tracked_before_anc4' => 'boolean',
-            'additional_anc_count' => 'nullable|integer|min:0',
-            'place_of_delivery' => 'nullable|string|max:255',
-            'delivery_kits_received' => 'boolean',
-            'type_of_delivery' => 'nullable|string|max:255',
-            'delivery_outcome' => 'nullable|string|max:255',
-            'date_of_delivery' => 'nullable|date',
-            'child_immunization_status' => 'nullable|string|max:255',
-            'fp_interest_postpartum' => 'boolean',
-            'fp_given' => 'boolean',
-            'fp_paid' => 'boolean',
-            'fp_payment_amount' => 'nullable|numeric|min:0',
-            'fp_reason_not_given' => 'nullable|string',
-            'pnc_visit_1' => 'nullable|date',
-            'pnc_visit_2' => 'nullable|date',
-            'health_insurance_status' => 'nullable|string|max:255',
-            'insurance_satisfaction' => 'boolean',
-            'anc_paid' => 'boolean',
-            'anc_payment_amount' => 'nullable|numeric|min:0',
-            'remark' => 'nullable|string',
-            'comments' => 'nullable|string',
-        ]);
-
-        return DB::transaction(function () use ($data, $lga, $ward) {
-            
-            // Unique ID Generation: LGA_CODE/WARD_CODE/SERIAL
-            $lga_code = strtoupper(substr($lga->code ?? 'NLA', 0, 3));
-            $ward_code = strtoupper(substr($ward->code ?? 'NWD', 0, 3));
-            
-            $serial = str_pad(
-                Patient::where('lga_id', $data['lga_id'])->where('ward_id', $data['ward_id'])->count() + 1,
-                3,
-                '0',
-                STR_PAD_LEFT
-            );
-            $data['unique_id'] = "{$lga_code}/{$ward_code}/{$serial}";
-            $data['phc_id'] = auth()->user()->phc_id;
-
-            Patient::create($data);
-
-            // FIX: Use redirect()->route() to ensure Inertia gets the flash message reliably.
-            return redirect()->route('phc.create-patient')->with('success', 'Patient registered successfully! Unique ID: ' . $data['unique_id']);
-        });
-    }
-
-    /**
-     * View a single patient record (phc.patients.show).
+     * Show patient details.
      */
     public function show($id)
     {
         $patient = Patient::where('phc_id', auth()->user()->phc_id)
                          ->with(['lga:id,name', 'ward:id,name', 'healthFacility:id,clinic_name'])
                          ->findOrFail($id);
-        return Inertia::render('Phc/ViewPatient', ['patient' => $patient]);
-    }
-    
-    /**
-     * Update patient record (phc.patients.update).
-     */
-    public function update(Request $request, $id)
-    {
-        $patient = Patient::where('phc_id', auth()->user()->phc_id)->findOrFail($id);
         
-        $data = $request->validate([
-            'woman_name' => 'required|string|max:255',
-            'age' => 'required|integer|between:15,50',
-            'literacy_status' => 'required|in:Literate,Illiterate,Not sure',
-            'phone_number' => 'nullable|string|max:20',
-            'husband_name' => 'nullable|string|max:255',
-            'husband_phone' => 'nullable|string|max:20',
-            'community' => 'required|string|max:255',
-            'address' => 'required|string|max:255',
-            'lga_id' => 'required|exists:lgas,id',
-            'ward_id' => 'required|exists:wards,id',
-            'health_facility_id' => 'required|exists:phcs,id',
-            'gravida' => 'nullable|integer|min:0',
-            'parity' => 'nullable|integer|min:0',
-            'date_of_registration' => 'required|date',
-            'edd' => 'required|date|after_or_equal:date_of_registration',
-            'anc_visit_1' => 'nullable|date', 'tracked_before_anc1' => 'boolean',
-            'anc_visit_2' => 'nullable|date', 'tracked_before_anc2' => 'boolean',
-            'anc_visit_3' => 'nullable|date', 'tracked_before_anc3' => 'boolean',
-            'anc_visit_4' => 'nullable|date', 'tracked_before_anc4' => 'boolean',
-            'additional_anc_count' => 'nullable|integer|min:0',
-            'place_of_delivery' => 'nullable|string|max:255',
-            'delivery_kits_received' => 'boolean',
-            'type_of_delivery' => 'nullable|string|max:255',
-            'delivery_outcome' => 'nullable|string|max:255',
-            'date_of_delivery' => 'nullable|date',
-            'child_immunization_status' => 'nullable|string|max:255',
-            'fp_interest_postpartum' => 'boolean',
-            'fp_given' => 'boolean',
-            'fp_paid' => 'boolean',
-            'fp_payment_amount' => 'nullable|numeric|min:0',
-            'fp_reason_not_given' => 'nullable|string',
-            'pnc_visit_1' => 'nullable|date',
-            'pnc_visit_2' => 'nullable|date',
-            'health_insurance_status' => 'nullable|string|max:255',
-            'insurance_satisfaction' => 'boolean',
-            'anc_paid' => 'boolean',
-            'anc_payment_amount' => 'nullable|numeric|min:0',
-            'remark' => 'nullable|string',
-            'comments' => 'nullable|string',
+        return Inertia::render('Phc/ViewPatient', [
+            'patient' => $patient
         ]);
-
-        $patient->update($data);
-
-        return back()->with('success', 'Patient updated successfully!');
     }
 
     /**
-     * Delete a patient record (phc.patients.destroy).
+     * Delete a patient record.
      */
     public function destroy($id)
     {
@@ -600,15 +380,442 @@ class PhcStaffController extends Controller
     }
 
     /**
-     * Display statistics for the logged-in PHC (phc.statistics).
+     * Debug ANC visits data
      */
-    public function statistics()
+    public function debugAncData()
     {
         $phcId = auth()->user()->phc_id;
-        $phcStats = $this->getPhcStatistics($phcId);
-
-        return Inertia::render('Phc/Statistics', [
-            'phcStats' => $phcStats
+        $patients = Patient::where('phc_id', $phcId)->get();
+        
+        $debugData = [];
+        foreach ($patients as $patient) {
+            $patientAnc = [];
+            for ($i = 1; $i <= 8; $i++) {
+                $fieldName = "anc_visit_{$i}_date";
+                $patientAnc["anc{$i}"] = $patient->$fieldName;
+            }
+            $debugData[] = [
+                'id' => $patient->id,
+                'name' => $patient->woman_name,
+                'anc_visits' => $patientAnc
+            ];
+        }
+        
+        return response()->json([
+            'total_patients' => $patients->count(),
+            'patient_anc_data' => $debugData,
+            'anc_breakdown' => $this->getAncVisitsBreakdown($patients)
         ]);
+    }
+
+    /**
+     * Get PHC statistics with dynamic trends.
+     */
+    private function getPhcStatistics($phcId)
+    {
+        $patients = Patient::where('phc_id', $phcId)->get();
+        
+        // Core KPIs
+        $totalPatients = $patients->count();
+        $delivered = $patients->whereNotNull('date_of_delivery')->count();
+        
+        // Calculate facility deliveries (deliveries at health facility)
+        $facilityDeliveries = $patients->where('place_of_delivery', 'Health Facility')->count();
+        $liveBirths = $patients->where('delivery_outcome', 'Live birth')->count();
+        
+        // Calculate rates
+        $deliveryRate = $totalPatients > 0 ? round(($delivered / $totalPatients) * 100, 1) : 0;
+        $facilityDeliveryRate = $delivered > 0 ? round(($facilityDeliveries / $delivered) * 100, 1) : 0;
+        
+        // ANC Completion Breakdown - Calculate based on ANC visit dates
+        $ancCompletion = [
+            'anc1Only' => $patients->whereNotNull('anc_visit_1_date')->whereNull('anc_visit_2_date')->count(),
+            'anc2Only' => $patients->whereNotNull('anc_visit_2_date')->whereNull('anc_visit_3_date')->count(),
+            'anc3Only' => $patients->whereNotNull('anc_visit_3_date')->whereNull('anc_visit_4_date')->count(),
+            'anc4Only' => $patients->whereNotNull('anc_visit_4_date')->whereNull('anc_visit_5_date')->count(),
+            'anc5Only' => $patients->whereNotNull('anc_visit_5_date')->whereNull('anc_visit_6_date')->count(),
+            'anc6Only' => $patients->whereNotNull('anc_visit_6_date')->whereNull('anc_visit_7_date')->count(),
+            'anc7Only' => $patients->whereNotNull('anc_visit_7_date')->whereNull('anc_visit_8_date')->count(),
+            'anc8Completed' => $patients->whereNotNull('anc_visit_8_date')->count(),
+        ];
+        
+        // Pregnancy Tracking
+        $pregnancyTracking = [
+            'sevenMonths' => $patients->filter(function ($patient) {
+                return $this->calculatePregnancyMonth($patient) == 7 && !$patient->date_of_delivery;
+            })->count(),
+            'eightMonths' => $patients->filter(function ($patient) {
+                return $this->calculatePregnancyMonth($patient) == 8 && !$patient->date_of_delivery;
+            })->count(),
+            'dueThisMonth' => $patients->filter(function ($patient) {
+                return $this->isDueThisMonth($patient) && !$patient->date_of_delivery;
+            })->count(),
+        ];
+
+        // Monthly registrations
+        $monthlyRegData = Patient::where('phc_id', $phcId)
+            ->select(DB::raw('MONTH(date_of_registration) as month'), DB::raw('count(*) as count'))
+            ->whereYear('date_of_registration', now()->year)
+            ->groupBy('month')
+            ->pluck('count', 'month')
+            ->toArray();
+        
+        // Delivery Outcome distribution
+        $deliveryOutcomes = Patient::where('phc_id', $phcId)
+            ->select('delivery_outcome', DB::raw('count(*) as count'))
+            ->whereNotNull('delivery_outcome')
+            ->groupBy('delivery_outcome')
+            ->pluck('count', 'delivery_outcome')
+            ->toArray();
+
+        // Calculate additional statistics for enhanced dashboard
+        $activePregnancies = $patients->whereNull('date_of_delivery')->count();
+        $pncIncomplete = $delivered - $patients->whereNotNull('pnc_visit_1')->whereNotNull('pnc_visit_2')->count();
+
+        // Calculate dynamic trends compared to previous period
+        $trends = $this->calculateTrends($phcId);
+
+        // Get the proper ANC visits breakdown
+        $ancVisitsBreakdown = $this->getAncVisitsBreakdown($patients);
+
+        return [
+            'totalPatients' => $totalPatients,
+            'delivered' => $delivered,
+            'facilityDeliveries' => $facilityDeliveries,
+            'liveBirths' => $liveBirths,
+            'deliveryRate' => $deliveryRate,
+            'facilityDeliveryRate' => $facilityDeliveryRate,
+            'ancVisitsBreakdown' => $ancVisitsBreakdown,
+            'ancCompletion' => $ancCompletion,
+            'pregnancyTracking' => $pregnancyTracking,
+            'monthlyRegistrations' => $monthlyRegData,
+            'deliveryOutcomes' => $deliveryOutcomes,
+            'pncIncomplete' => $pncIncomplete,
+            'activePregnancies' => $activePregnancies,
+            'trends' => $trends,
+        ];
+    }
+
+    /**
+     * Calculate dynamic trends compared to previous period.
+     */
+    private function calculateTrends($phcId)
+    {
+        $currentMonthStart = now()->startOfMonth();
+        $lastMonthStart = now()->subMonth()->startOfMonth();
+        $lastMonthEnd = now()->subMonth()->endOfMonth();
+
+        // Current month stats
+        $currentMonthStats = Patient::where('phc_id', $phcId)
+            ->where('date_of_registration', '>=', $currentMonthStart)
+            ->selectRaw('
+                COUNT(*) as total_patients,
+                COUNT(CASE WHEN date_of_delivery IS NOT NULL THEN 1 END) as delivered,
+                COUNT(CASE WHEN place_of_delivery = "Health Facility" THEN 1 END) as facility_deliveries,
+                COUNT(CASE WHEN delivery_outcome = "Live birth" THEN 1 END) as live_births
+            ')
+            ->first();
+
+        // Last month stats
+        $lastMonthStats = Patient::where('phc_id', $phcId)
+            ->whereBetween('date_of_registration', [$lastMonthStart, $lastMonthEnd])
+            ->selectRaw('
+                COUNT(*) as total_patients,
+                COUNT(CASE WHEN date_of_delivery IS NOT NULL THEN 1 END) as delivered,
+                COUNT(CASE WHEN place_of_delivery = "Health Facility" THEN 1 END) as facility_deliveries,
+                COUNT(CASE WHEN delivery_outcome = "Live birth" THEN 1 END) as live_births
+            ')
+            ->first();
+
+        // Calculate trends
+        $trends = [];
+        
+        // Total Patients trend
+        $currentPatients = $currentMonthStats->total_patients ?? 0;
+        $lastPatients = $lastMonthStats->total_patients ?? 0;
+        $trends['totalPatients'] = $lastPatients > 0 ? 
+            round((($currentPatients - $lastPatients) / $lastPatients) * 100, 1) : 
+            ($currentPatients > 0 ? 100 : 0);
+
+        // Delivery Rate trend
+        $currentDelivered = $currentMonthStats->delivered ?? 0;
+        $lastDelivered = $lastMonthStats->delivered ?? 0;
+        $currentDeliveryRate = $currentPatients > 0 ? ($currentDelivered / $currentPatients) * 100 : 0;
+        $lastDeliveryRate = $lastPatients > 0 ? ($lastDelivered / $lastPatients) * 100 : 0;
+        $trends['deliveryRate'] = $lastDeliveryRate > 0 ? 
+            round(($currentDeliveryRate - $lastDeliveryRate), 1) : 
+            ($currentDeliveryRate > 0 ? $currentDeliveryRate : 0);
+
+        // Facility Delivery Rate trend
+        $currentFacility = $currentMonthStats->facility_deliveries ?? 0;
+        $lastFacility = $lastMonthStats->facility_deliveries ?? 0;
+        $currentFacilityRate = $currentDelivered > 0 ? ($currentFacility / $currentDelivered) * 100 : 0;
+        $lastFacilityRate = $lastDelivered > 0 ? ($lastFacility / $lastDelivered) * 100 : 0;
+        $trends['facilityDeliveryRate'] = $lastFacilityRate > 0 ? 
+            round(($currentFacilityRate - $lastFacilityRate), 1) : 
+            ($currentFacilityRate > 0 ? $currentFacilityRate : 0);
+
+        // Live Births trend
+        $currentLiveBirths = $currentMonthStats->live_births ?? 0;
+        $lastLiveBirths = $lastMonthStats->live_births ?? 0;
+        $trends['liveBirths'] = $lastLiveBirths > 0 ? 
+            round((($currentLiveBirths - $lastLiveBirths) / $lastLiveBirths) * 100, 1) : 
+            ($currentLiveBirths > 0 ? 100 : 0);
+
+        return $trends;
+    }
+
+    /**
+     * Calculate pregnancy month based on EDD.
+     */
+    private function calculatePregnancyMonth($patient)
+    {
+        if (!$patient->edd || $patient->date_of_delivery) {
+            return null;
+        }
+
+        $edd = Carbon::parse($patient->edd);
+        $now = Carbon::now();
+        
+        $totalPregnancyDays = 280;
+        $daysPassed = $totalPregnancyDays - $now->diffInDays($edd, false);
+        
+        if ($daysPassed <= 0) return 9;
+        if ($daysPassed > 280) return 1;
+        
+        return (int) ceil($daysPassed / 30.44);
+    }
+
+    /**
+     * Check if patient is due this month.
+     */
+    private function isDueThisMonth($patient)
+    {
+        if (!$patient->edd || $patient->date_of_delivery) {
+            return false;
+        }
+
+        $edd = Carbon::parse($patient->edd);
+        $now = Carbon::now();
+        
+        return $edd->month == $now->month && $edd->year == $now->year;
+    }
+
+    /**
+     * Get ANC visits breakdown for visits 1-8 (robust version).
+     */
+    private function getAncVisitsBreakdown($patients)
+    {
+        $breakdown = [];
+        
+        // Count each ANC visit from 1 to 8 - handles both NULL and empty strings
+        for ($i = 1; $i <= 8; $i++) {
+            $fieldName = "anc_visit_{$i}_date";
+            $breakdown["anc{$i}"] = $patients->filter(function ($patient) use ($fieldName) {
+                $dateValue = $patient->$fieldName;
+                return !empty($dateValue) && $dateValue !== null && trim($dateValue) !== '';
+            })->count();
+        }
+        
+        // Count patients with additional ANC visits beyond the standard 8
+        $breakdown['anc5plus'] = $patients->where('additional_anc_count', '>', 0)->count();
+        
+        return $breakdown;
+    }
+
+    /**
+     * Get service utilization statistics.
+     */
+    private function getServiceUtilization($patients)
+    {
+        $delivered = $patients->whereNotNull('date_of_delivery');
+        
+        return [
+            'anc_services' => $patients->whereNotNull('anc_visit_1_date')->count(),
+            'delivery_services' => $delivered->count(),
+            'pnc_services' => $delivered->whereNotNull('pnc_visit_1')->count(),
+            'fp_services' => $patients->where('fp_using', true)->count(),
+            'immunization_services' => $patients->where('bcg_received', true)->count(),
+        ];
+    }
+
+    /**
+     * Calculate timely PNC rate.
+     */
+    private function calculateTimelyPnCRate($patients)
+    {
+        $delivered = $patients->whereNotNull('date_of_delivery');
+        $timelyPnC = $delivered->filter(function ($patient) {
+            if (!$patient->pnc_visit_1 || !$patient->date_of_delivery) {
+                return false;
+            }
+            $deliveryDate = Carbon::parse($patient->date_of_delivery);
+            $pncDate = Carbon::parse($patient->pnc_visit_1);
+            return $pncDate->diffInDays($deliveryDate) <= 7; // Within 7 days
+        })->count();
+
+        return $delivered->count() > 0 ? round(($timelyPnC / $delivered->count()) * 100) : 0;
+    }
+
+    /**
+     * Calculate immunization coverage.
+     */
+    private function calculateImmunizationCoverage($patients)
+    {
+        $withChildren = $patients->whereNotNull('child_dob');
+        $immunized = $withChildren->where('bcg_received', true);
+        
+        return $withChildren->count() > 0 ? round(($immunized->count() / $withChildren->count()) * 100) : 0;
+    }
+
+    /**
+     * Validate patient data for update methods.
+     */
+    private function validatePatientData(Request $request, $update = false)
+    {
+        $rules = [
+            // Personal Information
+            'woman_name' => 'required|string|max:255',
+            'age' => 'required|integer|between:15,50',
+            'literacy_status' => 'required|in:Literate,Illiterate,Not sure',
+            'phone_number' => 'nullable|string|max:20',
+            'husband_name' => 'nullable|string|max:255',
+            'husband_phone' => 'nullable|string|max:20',
+            'community' => 'required|string|max:255',
+            'address' => 'required|string',
+            'lga_id' => 'required|exists:lgas,id',
+            'ward_id' => 'required|exists:wards,id',
+            'health_facility_id' => 'required|exists:phcs,id',
+
+            // Medical Information
+            'gravida' => 'nullable|integer|min:0',
+            'parity' => 'nullable|integer|min:0',
+            'date_of_registration' => 'required|date',
+            'edd' => 'required|date|after_or_equal:date_of_registration',
+            'fp_interest' => 'nullable|in:Yes,No',
+
+            // ANC Visits 1-8
+            'additional_anc_count' => 'nullable|integer|min:0',
+
+            // Delivery Details
+            'place_of_delivery' => 'nullable|in:Home,Health Facility,Traditional Attendant',
+            'delivery_kits_received' => 'boolean',
+            'type_of_delivery' => 'nullable|in:Normal (Vaginal),Cesarean Section,Assisted,Breech',
+            'delivery_outcome' => 'nullable|in:Live birth,Stillbirth,Miscarriage',
+            'date_of_delivery' => 'nullable|date',
+
+            // Postnatal Checkup
+            'pnc_visit_1' => 'nullable|date',
+            'pnc_visit_2' => 'nullable|date',
+            'pnc_visit_3' => 'nullable|date',
+
+            // Insurance
+            'health_insurance_status' => 'nullable|in:Yes,No,Not Enrolled',
+            'insurance_type' => 'nullable|in:Kachima,NHIS,Others',
+            'insurance_other_specify' => 'nullable|string|max:255',
+            'insurance_satisfaction' => 'boolean',
+
+            // Family Planning
+            'fp_using' => 'boolean',
+            'fp_male_condom' => 'boolean',
+            'fp_female_condom' => 'boolean',
+            'fp_pill' => 'boolean',
+            'fp_injectable' => 'boolean',
+            'fp_implant' => 'boolean',
+            'fp_iud' => 'boolean',
+            'fp_other' => 'boolean',
+            'fp_other_specify' => 'nullable|string|max:255',
+
+            // Child Immunization
+            'child_name' => 'nullable|string|max:255',
+            'child_dob' => 'nullable|date',
+            'child_gender' => 'nullable|in:Male,Female',
+
+            // Notes
+            'remark' => 'nullable|string',
+            'comments' => 'nullable|string',
+        ];
+
+        // Add ANC visit rules for visits 1-8
+        for ($i = 1; $i <= 8; $i++) {
+            $rules["anc_visit_{$i}_date"] = 'nullable|date';
+            $rules["tracked_before_anc{$i}"] = 'boolean';
+            $rules["anc{$i}_paid"] = 'boolean';
+            $rules["anc{$i}_payment_amount"] = 'nullable|numeric|min:0';
+            
+            // Services
+            $rules["anc{$i}_urinalysis"] = 'boolean';
+            $rules["anc{$i}_iron_folate"] = 'boolean';
+            $rules["anc{$i}_mms"] = 'boolean';
+            $rules["anc{$i}_sp"] = 'boolean';
+            $rules["anc{$i}_sba"] = 'boolean';
+            
+            // HIV Testing
+            $rules["anc{$i}_hiv_test"] = 'nullable|in:Yes,No';
+            $rules["anc{$i}_hiv_result_received"] = 'boolean';
+            $rules["anc{$i}_hiv_result"] = 'nullable|in:Positive,Negative';
+        }
+
+        // Add vaccine rules
+        $vaccines = [
+            'bcg', 'hep0', 'opv0', 'penta1', 'pcv1', 'opv1', 'rota1', 'ipv1',
+            'penta2', 'pcv2', 'rota2', 'opv2', 'penta3', 'pcv3', 'opv3', 'rota3',
+            'ipv2', 'measles', 'yellow_fever', 'vitamin_a', 'mcv2'
+        ];
+
+        foreach ($vaccines as $vaccine) {
+            $rules["{$vaccine}_received"] = 'boolean';
+            $rules["{$vaccine}_date"] = 'nullable|date';
+        }
+
+        return $request->validate($rules);
+    }
+
+    /**
+     * Convert boolean fields.
+     */
+    private function convertBooleanFields($data)
+    {
+        // Generate ANC boolean fields for visits 1-8
+        $ancBooleanFields = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $ancBooleanFields = array_merge($ancBooleanFields, [
+                "tracked_before_anc{$i}",
+                "anc{$i}_paid",
+                "anc{$i}_urinalysis",
+                "anc{$i}_iron_folate", 
+                "anc{$i}_mms", 
+                "anc{$i}_sp", 
+                "anc{$i}_sba", 
+                "anc{$i}_hiv_result_received"
+            ]);
+        }
+        
+        $otherBooleanFields = [
+            // Delivery & Insurance
+            'delivery_kits_received', 'insurance_satisfaction',
+            
+            // Family Planning
+            'fp_using', 'fp_male_condom', 'fp_female_condom', 'fp_pill', 
+            'fp_injectable', 'fp_implant', 'fp_iud', 'fp_other',
+            
+            // Vaccines
+            'bcg_received', 'hep0_received', 'opv0_received', 'penta1_received',
+            'pcv1_received', 'opv1_received', 'rota1_received', 'ipv1_received',
+            'penta2_received', 'pcv2_received', 'rota2_received', 'opv2_received',
+            'penta3_received', 'pcv3_received', 'opv3_received', 'rota3_received',
+            'ipv2_received', 'measles_received', 'yellow_fever_received',
+            'vitamin_a_received', 'mcv2_received'
+        ];
+
+        $booleanFields = array_merge($ancBooleanFields, $otherBooleanFields);
+
+        foreach ($booleanFields as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = (bool)($data[$field] ?? false);
+            }
+        }
+
+        return $data;
     }
 }

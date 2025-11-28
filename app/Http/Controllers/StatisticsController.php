@@ -37,7 +37,7 @@ class StatisticsController extends Controller
         \Log::info('Ward count: ' . Ward::count());
         \Log::info('PHC count: ' . Phc::count());
 
-        $stats = $this->calculateStatistics($patients);
+        $stats = $this->calculateComprehensiveStatistics($patients);
         $chartData = $this->generateChartData($patients);
 
         $responseData = [
@@ -61,12 +61,44 @@ class StatisticsController extends Controller
         return Inertia::render('Admin/Statistics', $responseData);
     }
 
-    private function calculateStatistics($patients)
+    /**
+     * Calculate comprehensive statistics including ANC breakdown and pregnancy tracking
+     */
+    private function calculateComprehensiveStatistics($patients)
     {
         $totalRegistered = $patients->count();
+        
+        // ANC Statistics
         $anc4Completed = $patients->where('anc_visits_count', '>=', 4)->count();
         $anc4Rate = $totalRegistered > 0 ? round(($anc4Completed / $totalRegistered) * 100, 1) : 0;
 
+        // NEW: ANC Completion Breakdown (Exclusive counts)
+        $anc1Only = $patients->filter(function ($patient) {
+            return $patient->anc_visit_1 && !$patient->anc_visit_2;
+        })->count();
+        
+        $anc2Only = $patients->filter(function ($patient) {
+            return $patient->anc_visit_2 && !$patient->anc_visit_3;
+        })->count();
+        
+        $anc3Only = $patients->filter(function ($patient) {
+            return $patient->anc_visit_3 && !$patient->anc_visit_4;
+        })->count();
+
+        // NEW: Pregnancy Month Tracking
+        $sevenMonthsPregnant = $patients->filter(function ($patient) {
+            return $this->calculatePregnancyMonth($patient) == 7 && !$patient->date_of_delivery;
+        })->count();
+        
+        $eightMonthsPregnant = $patients->filter(function ($patient) {
+            return $this->calculatePregnancyMonth($patient) == 8 && !$patient->date_of_delivery;
+        })->count();
+        
+        $dueThisMonth = $patients->filter(function ($patient) {
+            return $this->isDueThisMonth($patient) && !$patient->date_of_delivery;
+        })->count();
+
+        // Delivery Statistics
         $deliveredPatients = $patients->whereNotNull('date_of_delivery');
         $totalDelivered = $deliveredPatients->count();
 
@@ -76,9 +108,11 @@ class StatisticsController extends Controller
 
         $hospitalDeliveryRate = $totalDelivered > 0 ? round(($hospitalDeliveries / $totalDelivered) * 100, 1) : 0;
 
+        // Delivery Kits
         $kitsReceived = $deliveredPatients->where('delivery_kits_received', true)->count();
         $kitsReceivedRate = $totalDelivered > 0 ? round(($kitsReceived / $totalDelivered) * 100, 1) : 0;
 
+        // PNC Statistics
         $pnc1Within48h = $deliveredPatients->filter(function ($patient) {
             return $patient->date_of_delivery && $patient->pnc_visit_1 && 
                    Carbon::parse($patient->pnc_visit_1)->diffInHours(Carbon::parse($patient->date_of_delivery)) <= 48;
@@ -86,8 +120,16 @@ class StatisticsController extends Controller
 
         $pnc1Within48hRate = $totalDelivered > 0 ? round(($pnc1Within48h / $totalDelivered) * 100, 1) : 0;
 
+        // Birth Outcomes
         $liveBirths = $deliveredPatients->where('delivery_outcome', 'Live birth')->count();
         $liveBirthRate = $totalDelivered > 0 ? round(($liveBirths / $totalDelivered) * 100, 1) : 0;
+
+        // Additional Metrics
+        $pncIncomplete = $deliveredPatients->filter(function ($patient) {
+            return empty($patient->pnc_visit_1) || empty($patient->pnc_visit_2);
+        })->count();
+
+        $stillbirths = $deliveredPatients->where('delivery_outcome', 'Stillbirth')->count();
 
         return [
             'totalRegistered' => $totalRegistered,
@@ -96,17 +138,78 @@ class StatisticsController extends Controller
             'kitsReceivedRate' => $kitsReceivedRate,
             'pnc1Within48hRate' => $pnc1Within48hRate,
             'liveBirthRate' => $liveBirthRate,
+            
+            // NEW: ANC Completion Breakdown
+            'ancCompletion' => [
+                'anc1Only' => $anc1Only,
+                'anc2Only' => $anc2Only,
+                'anc3Only' => $anc3Only,
+                'anc4Completed' => $anc4Completed,
+            ],
+            
+            // NEW: Pregnancy Tracking
+            'pregnancyTracking' => [
+                'sevenMonths' => $sevenMonthsPregnant,
+                'eightMonths' => $eightMonthsPregnant,
+                'dueThisMonth' => $dueThisMonth,
+            ],
+            
             'detailedCounts' => [
                 'anc4Completed' => $anc4Completed,
                 'totalDelivered' => $totalDelivered,
-                'pncIncomplete' => $deliveredPatients->filter(fn($p) => empty($p->pnc_visit_1) || empty($p->pnc_visit_2))->count(),
-                'stillbirths' => $deliveredPatients->where('delivery_outcome', 'Stillbirth')->count(),
+                'pncIncomplete' => $pncIncomplete,
+                'stillbirths' => $stillbirths,
                 'liveBirths' => $liveBirths,
                 'hospitalDeliveries' => $hospitalDeliveries,
                 'kitsReceived' => $kitsReceived,
                 'pnc1Within48h' => $pnc1Within48h,
             ]
         ];
+    }
+
+    /**
+     * Calculate pregnancy month based on EDD
+     */
+    private function calculatePregnancyMonth($patient)
+    {
+        if (!$patient->edd || $patient->date_of_delivery) {
+            return null; // No EDD or already delivered
+        }
+
+        $edd = Carbon::parse($patient->edd);
+        $now = Carbon::now();
+        
+        // Pregnancy is typically 9 months (40 weeks)
+        $totalPregnancyDays = 280; // 40 weeks * 7 days
+        $daysPassed = $totalPregnancyDays - $now->diffInDays($edd, false);
+        
+        if ($daysPassed <= 0) return 9; // At or past due date
+        if ($daysPassed > 280) return 1; // Just started
+        
+        return (int) ceil($daysPassed / 30.44); // Average days per month
+    }
+
+    /**
+     * Check if patient is due this month
+     */
+    private function isDueThisMonth($patient)
+    {
+        if (!$patient->edd || $patient->date_of_delivery) {
+            return false;
+        }
+
+        $edd = Carbon::parse($patient->edd);
+        $now = Carbon::now();
+        
+        return $edd->month == $now->month && $edd->year == $now->year;
+    }
+
+    /**
+     * Keep the original calculateStatistics method for backward compatibility
+     */
+    private function calculateStatistics($patients)
+    {
+        return $this->calculateComprehensiveStatistics($patients);
     }
 
     private function generateChartData($patients)

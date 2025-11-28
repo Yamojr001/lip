@@ -78,15 +78,13 @@ export default function Login() {
               </button>
             </form>
 
-            {/* <p className="text-center text-sm text-gray-600 mt-6">
-              Don’t have an account?{" "}
-              <Link
-                href={route("register")}
-                className="text-[#5B2D91] font-semibold hover:underline"
-              >
-                Register
+            <p className="text-center text-sm text-gray-600 mt-6">
+            Forgot your password?{" "}
+              <Link href={route("password.request")}>
+
+                Reset it here
               </Link>
-            </p> */}
+            </p>
           </div>
         </div>
       </div>
