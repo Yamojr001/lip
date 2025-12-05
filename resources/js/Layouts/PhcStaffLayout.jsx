@@ -10,13 +10,13 @@ import {
   X,
   FileText,
   Search,
+  Apple,
 } from "lucide-react";
 
 export default function PhcStaffLayout({ children, title = "PHC Dashboard" }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { url, props } = usePage();
-  // Ensure auth is correctly destructured, including phc relationship for clinic name
-  const { auth } = props; 
+  const { auth } = props;
 
   const NavItem = ({ href, icon: Icon, label, method = "get" }) => (
     <Link
@@ -61,9 +61,12 @@ export default function PhcStaffLayout({ children, title = "PHC Dashboard" }) {
           <NavItem href={route('phc.dashboard')} icon={LayoutDashboard} label="Dashboard" />
           <NavItem href={route('phc.records')} icon={FileText} label="My Records" />
           <NavItem href={route('phc.all-patients')} icon={Search} label="Search All Patients" />
-          <NavItem href={route('phc.create-patient')} icon={UserPlus} label="Create New Patient" /> 
-          {/* <NavItem href={route('phc.statistics')} icon={BarChart3} label="Statistics" />  */}
-          {/* <NavItem href={route('phc.reports')} icon={BarChart3} label="Reports" />  */}
+          <NavItem href={route('phc.create-patient')} icon={UserPlus} label="Create New Patient" />
+          
+          {/* New Nutrition Reports Menu Item */}
+          <NavItem href={route('phc.nutrition.reports.index')} icon={Apple} label="Nutrition Reports" />
+          
+          {/* <NavItem href={route('phc.statistics')} icon={BarChart3} label="Statistics" /> */}
         </nav>
 
         <div className="p-4 border-t border-purple-500 mt-auto">

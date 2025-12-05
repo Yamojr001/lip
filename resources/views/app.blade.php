@@ -3,7 +3,6 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
         <!-- Fonts -->
@@ -12,8 +11,17 @@
 
         <!-- Scripts -->
         @routes
-        @viteReactRefresh
-        @vite(['resources/js/app.jsx'])
+        
+        @if (app()->environment('production'))
+            <!-- Production assets -->
+            <link rel="stylesheet" href="{{ asset('build/assets/app-BSnb-_Cr.css') }}">
+            <script type="module" src="{{ asset('build/assets/app-QgmvKq8S.js') }}"></script>
+        @else
+            <!-- Development assets -->
+            @viteReactRefresh
+            @vite(['resources/js/app.jsx'])
+        @endif
+        
         @inertiaHead
     </head>
     <body class="font-sans antialiased">

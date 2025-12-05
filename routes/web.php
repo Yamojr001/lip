@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\NutritionReportController;
 
 // 🏠 Landing Page
 Route::get('/', function () {
@@ -66,9 +67,18 @@ Route::middleware(['auth', 'verified', 'role:phc_staff'])
         Route::get('/patients/{id}/edit', [PhcStaffController::class, 'edit'])->name('patients.edit');
         Route::patch('/patients/{id}', [PhcStaffController::class, 'update'])->name('patients.update');
         Route::delete('/patients/{id}', [PhcStaffController::class, 'destroy'])->name('patients.destroy');
-        
+
         // Report Generation
         Route::post('/reports/generate', [PhcStaffController::class, 'generateReport'])->name('reports.generate');
+        
+        // 🍎 NUTRITION REPORT ROUTES
+        Route::get('/nutrition-reports', [NutritionReportController::class, 'index'])->name('nutrition.reports.index');
+        Route::get('/nutrition-reports/create', [NutritionReportController::class, 'create'])->name('nutrition.reports.create');
+        Route::post('/nutrition-reports', [NutritionReportController::class, 'store'])->name('nutrition.reports.store');
+        Route::get('/nutrition-reports/{nutritionReport}/edit', [NutritionReportController::class, 'edit'])->name('nutrition.reports.edit');
+        Route::put('/nutrition-reports/{nutritionReport}', [NutritionReportController::class, 'update'])->name('nutrition.reports.update');
+        Route::delete('/nutrition-reports/{nutritionReport}', [NutritionReportController::class, 'destroy'])->name('nutrition.reports.destroy');
+        Route::post('/nutrition-reports/{nutritionReport}/submit', [NutritionReportController::class, 'submit'])->name('nutrition.reports.submit');
     });
 
 // 🧑‍💼 ADMIN ROUTES
@@ -77,8 +87,17 @@ Route::middleware(['auth', 'verified', 'role:admin'])
     ->name('admin.')
     ->group(function () {
     
-    // Dashboard
+    // Dashboard with all tabs data
     Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
+    
+    // Individual tab routes for better data loading
+    Route::get('/dashboard/anc', [AdminController::class, 'ancAnalytics'])->name('dashboard.anc');
+    Route::get('/dashboard/delivery', [AdminController::class, 'deliveryAnalytics'])->name('dashboard.delivery');
+    Route::get('/dashboard/immunization', [AdminController::class, 'immunizationAnalytics'])->name('dashboard.immunization');
+    Route::get('/dashboard/fp', [AdminController::class, 'familyPlanningAnalytics'])->name('dashboard.fp');
+    Route::get('/dashboard/hiv', [AdminController::class, 'hivAnalytics'])->name('dashboard.hiv');
+    Route::get('/dashboard/facilities', [AdminController::class, 'facilitiesAnalytics'])->name('dashboard.facilities');
+
     Route::post('/create-phc', [AdminController::class, 'createPhc'])->name('createPhc');
 
     // Reports
@@ -101,6 +120,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])
     // FACILITIES ROUTES
     Route::get('/manage-facilities', [PhcController::class, 'adminIndex'])->name('manage-facilities');
     Route::post('/phcs', [PhcController::class, 'store'])->name('phcs.store');
+
+    // 🍎 ADMIN NUTRITION REPORT ROUTES
+    Route::get('/nutrition-reports', [NutritionReportController::class, 'adminIndex'])->name('nutrition.reports.index');
+    Route::get('/nutrition-statistics', [NutritionReportController::class, 'adminStatistics'])->name('nutrition.statistics');
+    Route::get('/nutrition-export', [NutritionReportController::class, 'export'])->name('nutrition.export');
 
     // STATISTICS ROUTE
     Route::get('/statistics', [StatisticsController::class, 'index'])->name('statistics');

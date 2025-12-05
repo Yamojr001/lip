@@ -27,441 +27,175 @@ class PatientSeeder extends Seeder
             return;
         }
 
-        $patients = [
-            [
-                'woman_name' => 'Aisha Mohammed',
-                'age' => 28,
-                'literacy_status' => 'Literate',
-                'phone_number' => '08012345678',
-                'husband_name' => 'Mohammed Bello',
-                'husband_phone' => '08087654321',
-                'community' => 'Ungogo',
-                'address' => '123 Main Street, Ungogo',
-                'lga_id' => $lgas->first()->id,
-                'ward_id' => $wards->first()->id,
-                'health_facility_id' => $phcs->first()->id,
-                'gravida' => 2,
-                'parity' => 1,
-                'date_of_registration' => '2024-01-15',
-                'edd' => '2024-10-20',
-                'fp_interest' => 'Yes',
-                'anc_visit_1_date' => '2024-01-15',
-                'tracked_before_anc1' => false,
-                'anc1_paid' => true,
-                'anc1_payment_amount' => 1500.00,
-                'anc1_urinalysis' => true,
-                'anc1_iron_folate' => true,
-                'anc1_mms' => true,
-                'anc1_sp' => true,
-                'anc1_sba' => true,
+        $patients = [];
+
+        // Generate 60 patients
+        for ($i = 1; $i <= 60; $i++) {
+            $lga = $lgas->random();
+            $ward = $wards->random();
+            $phc = $phcs->random();
+
+            // Random dates in 2025
+            $registrationDate = Carbon::create(2025, rand(1, 6), rand(1, 28))->format('Y-m-d');
+            $edd = Carbon::parse($registrationDate)->addDays(rand(180, 280))->format('Y-m-d');
+            
+            // Determine if patient has delivered
+            $hasDelivered = rand(0, 1);
+            $deliveryDate = $hasDelivered ? Carbon::parse($edd)->subDays(rand(0, 14))->format('Y-m-d') : null;
+            
+            // ANC visits
+            $anc1Date = Carbon::parse($registrationDate)->addDays(rand(0, 30))->format('Y-m-d');
+            $anc2Date = Carbon::parse($anc1Date)->addDays(rand(28, 56))->format('Y-m-d');
+            $anc3Date = Carbon::parse($anc2Date)->addDays(rand(28, 56))->format('Y-m-d');
+            $anc4Date = rand(0, 1) ? Carbon::parse($anc3Date)->addDays(rand(28, 56))->format('Y-m-d') : null;
+
+            // Literacy status
+            $literacyStatus = ['Literate', 'Illiterate', 'Not sure'][rand(0, 2)];
+            
+            // FP interest
+            $fpInterest = ['Yes', 'No'][rand(0, 1)];
+            
+            // HIV test results
+            $hivResult = rand(0, 10) > 8 ? 'Positive' : 'Negative'; // 80% negative, 20% positive
+            
+            // Insurance status
+            $insuranceStatus = ['Yes', 'No', 'Not Enrolled'][rand(0, 2)];
+            $insuranceType = $insuranceStatus === 'Yes' ? ['NHIS', 'Kachima', 'Others'][rand(0, 2)] : null;
+
+            // Generate patient data
+            $patient = [
+                'woman_name' => $this->generateWomanName($i),
+                'age' => rand(18, 40),
+                'literacy_status' => $literacyStatus,
+                'phone_number' => '080' . rand(10000000, 99999999),
+                'husband_name' => $this->generateHusbandName($i),
+                'husband_phone' => '080' . rand(10000000, 99999999),
+                'community' => $this->generateCommunity($i),
+                'address' => $this->generateAddress($i),
+                'lga_id' => $lga->id,
+                'ward_id' => $ward->id,
+                'health_facility_id' => $phc->id,
+                'gravida' => rand(1, 6),
+                'parity' => rand(0, 5),
+                'date_of_registration' => $registrationDate,
+                'edd' => $edd,
+                'fp_interest' => $fpInterest,
+                
+                // ANC Visit 1
+                'anc_visit_1_date' => $anc1Date,
+                'tracked_before_anc1' => rand(0, 1),
+                'anc1_paid' => rand(0, 1),
+                'anc1_payment_amount' => rand(0, 1) ? rand(1000, 3000) : null,
+                'anc1_urinalysis' => rand(0, 1),
+                'anc1_iron_folate' => rand(0, 1),
+                'anc1_mms' => rand(0, 1),
+                'anc1_sp' => rand(0, 1),
+                'anc1_sba' => rand(0, 1),
                 'anc1_hiv_test' => 'Yes',
                 'anc1_hiv_result_received' => true,
-                'anc1_hiv_result' => 'Negative',
-                'anc_visit_2_date' => '2024-03-15',
-                'tracked_before_anc2' => false,
-                'anc2_paid' => true,
-                'anc2_payment_amount' => 1500.00,
-                'anc2_urinalysis' => true,
-                'anc2_iron_folate' => true,
-                'anc2_mms' => true,
-                'anc2_sp' => true,
-                'anc2_sba' => true,
-                'anc2_hiv_test' => 'Yes',
-                'anc2_hiv_result_received' => true,
-                'anc2_hiv_result' => 'Negative',
-                'anc_visit_3_date' => '2024-05-15',
-                'tracked_before_anc3' => false,
-                'anc3_paid' => true,
-                'anc3_payment_amount' => 1500.00,
-                'anc3_urinalysis' => true,
-                'anc3_iron_folate' => true,
-                'anc3_mms' => true,
-                'anc3_sp' => true,
-                'anc3_sba' => true,
-                'anc3_hiv_test' => 'Yes',
-                'anc3_hiv_result_received' => true,
-                'anc3_hiv_result' => 'Negative',
-                'anc_visit_4_date' => '2024-07-15',
-                'tracked_before_anc4' => false,
-                'anc4_paid' => true,
-                'anc4_payment_amount' => 1500.00,
-                'anc4_urinalysis' => true,
-                'anc4_iron_folate' => true,
-                'anc4_mms' => true,
-                'anc4_sp' => true,
-                'anc4_sba' => true,
-                'anc4_hiv_test' => 'Yes',
-                'anc4_hiv_result_received' => true,
-                'anc4_hiv_result' => 'Negative',
-                'additional_anc_count' => 0,
-                'place_of_delivery' => 'Health Facility',
-                'delivery_kits_received' => true,
-                'type_of_delivery' => 'Normal (Vaginal)',
-                'delivery_outcome' => 'Live birth',
-                'date_of_delivery' => '2024-10-18',
-                'pnc_visit_1' => '2024-10-20',
-                'pnc_visit_2' => '2024-11-05',
-                'pnc_visit_3' => '2024-11-20',
-                'health_insurance_status' => 'Yes',
-                'insurance_type' => 'NHIS',
-                'insurance_other_specify' => null,
-                'insurance_satisfaction' => true,
-                'fp_using' => true,
-                'fp_male_condom' => false,
-                'fp_female_condom' => false,
-                'fp_pill' => true,
-                'fp_injectable' => false,
-                'fp_implant' => false,
-                'fp_iud' => false,
-                'fp_other' => false,
-                'fp_other_specify' => null,
-                'child_name' => 'Fatima Mohammed',
-                'child_dob' => '2024-10-18',
-                'child_gender' => 'Female',
-                'bcg_received' => true,
-                'bcg_date' => '2024-10-18',
-                'hep0_received' => true,
-                'hep0_date' => '2024-10-18',
-                'opv0_received' => true,
-                'opv0_date' => '2024-10-18',
-                'penta1_received' => true,
-                'penta1_date' => '2024-11-18',
-                'pcv1_received' => true,
-                'pcv1_date' => '2024-11-18',
-                'opv1_received' => true,
-                'opv1_date' => '2024-11-18',
-                'rota1_received' => true,
-                'rota1_date' => '2024-11-18',
-                'ipv1_received' => true,
-                'ipv1_date' => '2024-11-18',
-                'remark' => 'Healthy pregnancy and delivery. Patient is responsive to ANC services.',
-                'comments' => 'Regular follow-up maintained throughout pregnancy.',
-                'phc_id' => $phcs->first()->id,
-            ],
-            [
-                'woman_name' => 'Halima Yusuf',
-                'age' => 32,
-                'literacy_status' => 'Illiterate',
-                'phone_number' => '08023456789',
-                'husband_name' => 'Yusuf Ahmed',
-                'husband_phone' => '08076543210',
-                'community' => 'Daura',
-                'address' => '456 Market Road, Daura',
-                'lga_id' => $lgas->first()->id,
-                'ward_id' => $wards->first()->id,
-                'health_facility_id' => $phcs->first()->id,
-                'gravida' => 4,
-                'parity' => 3,
-                'date_of_registration' => '2024-02-10',
-                'edd' => '2024-11-25',
-                'fp_interest' => 'No',
-                'anc_visit_1_date' => '2024-02-10',
-                'tracked_before_anc1' => true,
-                'anc1_paid' => false,
-                'anc1_payment_amount' => null,
-                'anc1_urinalysis' => true,
-                'anc1_iron_folate' => true,
-                'anc1_mms' => false,
-                'anc1_sp' => true,
-                'anc1_sba' => true,
-                'anc1_hiv_test' => 'Yes',
-                'anc1_hiv_result_received' => true,
-                'anc1_hiv_result' => 'Negative',
-                'anc_visit_2_date' => '2024-04-10',
-                'tracked_before_anc2' => true,
-                'anc2_paid' => false,
-                'anc2_payment_amount' => null,
-                'anc2_urinalysis' => true,
-                'anc2_iron_folate' => true,
-                'anc2_mms' => false,
-                'anc2_sp' => true,
-                'anc2_sba' => true,
-                'anc2_hiv_test' => 'Yes',
-                'anc2_hiv_result_received' => true,
-                'anc2_hiv_result' => 'Negative',
-                'anc_visit_3_date' => '2024-06-10',
-                'tracked_before_anc3' => true,
-                'anc3_paid' => false,
-                'anc3_payment_amount' => null,
-                'anc3_urinalysis' => true,
-                'anc3_iron_folate' => true,
-                'anc3_mms' => false,
-                'anc3_sp' => true,
-                'anc3_sba' => true,
-                'anc3_hiv_test' => 'Yes',
-                'anc3_hiv_result_received' => true,
-                'anc3_hiv_result' => 'Negative',
-                'anc_visit_4_date' => null,
-                'tracked_before_anc4' => false,
-                'anc4_paid' => false,
-                'anc4_payment_amount' => null,
-                'anc4_urinalysis' => false,
-                'anc4_iron_folate' => false,
-                'anc4_mms' => false,
-                'anc4_sp' => false,
-                'anc4_sba' => false,
-                'anc4_hiv_test' => null,
-                'anc4_hiv_result_received' => false,
-                'anc4_hiv_result' => null,
-                'additional_anc_count' => 0,
-                'place_of_delivery' => 'Home',
-                'delivery_kits_received' => false,
-                'type_of_delivery' => 'Normal (Vaginal)',
-                'delivery_outcome' => 'Live birth',
-                'date_of_delivery' => '2024-11-20',
-                'pnc_visit_1' => '2024-11-22',
-                'pnc_visit_2' => '2024-12-05',
-                'pnc_visit_3' => null,
-                'health_insurance_status' => 'No',
-                'insurance_type' => null,
-                'insurance_other_specify' => null,
-                'insurance_satisfaction' => false,
-                'fp_using' => false,
-                'fp_male_condom' => false,
-                'fp_female_condom' => false,
-                'fp_pill' => false,
-                'fp_injectable' => false,
-                'fp_implant' => false,
-                'fp_iud' => false,
-                'fp_other' => false,
-                'fp_other_specify' => null,
-                'child_name' => 'Abdullahi Yusuf',
-                'child_dob' => '2024-11-20',
-                'child_gender' => 'Male',
-                'bcg_received' => true,
-                'bcg_date' => '2024-11-22',
-                'hep0_received' => true,
-                'hep0_date' => '2024-11-22',
-                'opv0_received' => true,
-                'opv0_date' => '2024-11-22',
-                'penta1_received' => true,
-                'penta1_date' => '2024-12-20',
-                'pcv1_received' => true,
-                'pcv1_date' => '2024-12-20',
-                'opv1_received' => true,
-                'opv1_date' => '2024-12-20',
-                'rota1_received' => true,
-                'rota1_date' => '2024-12-20',
-                'ipv1_received' => true,
-                'ipv1_date' => '2024-12-20',
-                'remark' => 'Patient delivered at home but came for PNC. Encouraged facility delivery for next pregnancy.',
-                'comments' => 'Family planning education provided.',
-                'phc_id' => $phcs->first()->id,
-            ],
-            // Add 8 more patients with similar structure...
-            [
-                'woman_name' => 'Zainab Abdullahi',
-                'age' => 25,
-                'literacy_status' => 'Literate',
-                'phone_number' => '08034567890',
-                'husband_name' => 'Abdullahi Sani',
-                'husband_phone' => '08065432109',
-                'community' => 'Katsina',
-                'address' => '789 School Road, Katsina',
-                'lga_id' => $lgas->first()->id,
-                'ward_id' => $wards->first()->id,
-                'health_facility_id' => $phcs->first()->id,
-                'gravida' => 1,
-                'parity' => 0,
-                'date_of_registration' => '2024-03-05',
-                'edd' => '2024-12-15',
-                'fp_interest' => 'Yes',
-                'anc_visit_1_date' => '2024-03-05',
-                'tracked_before_anc1' => false,
-                'anc1_paid' => true,
-                'anc1_payment_amount' => 2000.00,
-                'anc1_urinalysis' => true,
-                'anc1_iron_folate' => true,
-                'anc1_mms' => true,
-                'anc1_sp' => true,
-                'anc1_sba' => true,
-                'anc1_hiv_test' => 'Yes',
-                'anc1_hiv_result_received' => true,
-                'anc1_hiv_result' => 'Negative',
-                'anc_visit_2_date' => '2024-05-05',
-                'tracked_before_anc2' => false,
-                'anc2_paid' => true,
-                'anc2_payment_amount' => 2000.00,
-                'anc2_urinalysis' => true,
-                'anc2_iron_folate' => true,
-                'anc2_mms' => true,
-                'anc2_sp' => true,
-                'anc2_sba' => true,
-                'anc2_hiv_test' => 'Yes',
-                'anc2_hiv_result_received' => true,
-                'anc2_hiv_result' => 'Negative',
-                'anc_visit_3_date' => '2024-07-05',
-                'tracked_before_anc3' => false,
-                'anc3_paid' => true,
-                'anc3_payment_amount' => 2000.00,
-                'anc3_urinalysis' => true,
-                'anc3_iron_folate' => true,
-                'anc3_mms' => true,
-                'anc3_sp' => true,
-                'anc3_sba' => true,
-                'anc3_hiv_test' => 'Yes',
-                'anc3_hiv_result_received' => true,
-                'anc3_hiv_result' => 'Negative',
-                'anc_visit_4_date' => '2024-09-05',
-                'tracked_before_anc4' => false,
-                'anc4_paid' => true,
-                'anc4_payment_amount' => 2000.00,
-                'anc4_urinalysis' => true,
-                'anc4_iron_folate' => true,
-                'anc4_mms' => true,
-                'anc4_sp' => true,
-                'anc4_sba' => true,
-                'anc4_hiv_test' => 'Yes',
-                'anc4_hiv_result_received' => true,
-                'anc4_hiv_result' => 'Negative',
-                'additional_anc_count' => 0,
-                'place_of_delivery' => 'Health Facility',
-                'delivery_kits_received' => true,
-                'type_of_delivery' => 'Normal (Vaginal)',
-                'delivery_outcome' => 'Live birth',
-                'date_of_delivery' => '2024-12-12',
-                'pnc_visit_1' => '2024-12-14',
-                'pnc_visit_2' => '2024-12-28',
-                'pnc_visit_3' => '2025-01-10',
-                'health_insurance_status' => 'Yes',
-                'insurance_type' => 'Kachima',
-                'insurance_other_specify' => null,
-                'insurance_satisfaction' => true,
-                'fp_using' => true,
-                'fp_male_condom' => false,
-                'fp_female_condom' => false,
-                'fp_pill' => false,
-                'fp_injectable' => true,
-                'fp_implant' => false,
-                'fp_iud' => false,
-                'fp_other' => false,
-                'fp_other_specify' => null,
-                'child_name' => 'Aminu Abdullahi',
-                'child_dob' => '2024-12-12',
-                'child_gender' => 'Male',
-                'bcg_received' => true,
-                'bcg_date' => '2024-12-12',
-                'hep0_received' => true,
-                'hep0_date' => '2024-12-12',
-                'opv0_received' => true,
-                'opv0_date' => '2024-12-12',
-                'penta1_received' => true,
-                'penta1_date' => '2025-01-12',
-                'pcv1_received' => true,
-                'pcv1_date' => '2025-01-12',
-                'opv1_received' => true,
-                'opv1_date' => '2025-01-12',
-                'rota1_received' => true,
-                'rota1_date' => '2025-01-12',
-                'ipv1_received' => true,
-                'ipv1_date' => '2025-01-12',
-                'remark' => 'First-time mother, very cooperative throughout ANC visits.',
-                'comments' => 'Showed good understanding of maternal health practices.',
-                'phc_id' => $phcs->first()->id,
-            ],
-            // Continue with 7 more patients...
-            [
-                'woman_name' => 'Fatima Bello',
-                'age' => 35,
-                'literacy_status' => 'Not sure',
-                'phone_number' => '08045678901',
-                'husband_name' => 'Bello Ibrahim',
-                'husband_phone' => '08054321098',
-                'community' => 'Funtua',
-                'address' => '321 Hospital Road, Funtua',
-                'lga_id' => $lgas->first()->id,
-                'ward_id' => $wards->first()->id,
-                'health_facility_id' => $phcs->first()->id,
-                'gravida' => 5,
-                'parity' => 4,
-                'date_of_registration' => '2024-04-20',
-                'edd' => '2025-01-30',
-                'fp_interest' => 'No',
-                'anc_visit_1_date' => '2024-04-20',
-                'tracked_before_anc1' => true,
-                'anc1_paid' => false,
-                'anc1_payment_amount' => null,
-                'anc1_urinalysis' => true,
-                'anc1_iron_folate' => true,
-                'anc1_mms' => false,
-                'anc1_sp' => true,
-                'anc1_sba' => true,
-                'anc1_hiv_test' => 'Yes',
-                'anc1_hiv_result_received' => true,
-                'anc1_hiv_result' => 'Negative',
-                'anc_visit_2_date' => '2024-06-20',
-                'tracked_before_anc2' => true,
-                'anc2_paid' => false,
-                'anc2_payment_amount' => null,
-                'anc2_urinalysis' => true,
-                'anc2_iron_folate' => true,
-                'anc2_mms' => false,
-                'anc2_sp' => true,
-                'anc2_sba' => true,
-                'anc2_hiv_test' => 'Yes',
-                'anc2_hiv_result_received' => true,
-                'anc2_hiv_result' => 'Negative',
-                'anc_visit_3_date' => null,
-                'tracked_before_anc3' => false,
-                'anc3_paid' => false,
-                'anc3_payment_amount' => null,
-                'anc3_urinalysis' => false,
-                'anc3_iron_folate' => false,
-                'anc3_mms' => false,
-                'anc3_sp' => false,
-                'anc3_sba' => false,
-                'anc3_hiv_test' => null,
-                'anc3_hiv_result_received' => false,
-                'anc3_hiv_result' => null,
-                'anc_visit_4_date' => null,
-                'tracked_before_anc4' => false,
-                'anc4_paid' => false,
-                'anc4_payment_amount' => null,
-                'anc4_urinalysis' => false,
-                'anc4_iron_folate' => false,
-                'anc4_mms' => false,
-                'anc4_sp' => false,
-                'anc4_sba' => false,
-                'anc4_hiv_test' => null,
-                'anc4_hiv_result_received' => false,
-                'anc4_hiv_result' => null,
-                'additional_anc_count' => 0,
-                'place_of_delivery' => null,
-                'delivery_kits_received' => false,
-                'type_of_delivery' => null,
-                'delivery_outcome' => null,
-                'date_of_delivery' => null,
-                'pnc_visit_1' => null,
-                'pnc_visit_2' => null,
-                'pnc_visit_3' => null,
-                'health_insurance_status' => 'Not Enrolled',
-                'insurance_type' => null,
-                'insurance_other_specify' => null,
-                'insurance_satisfaction' => false,
-                'fp_using' => false,
-                'fp_male_condom' => false,
-                'fp_female_condom' => false,
-                'fp_pill' => false,
-                'fp_injectable' => false,
-                'fp_implant' => false,
-                'fp_iud' => false,
-                'fp_other' => false,
-                'fp_other_specify' => null,
-                'child_name' => null,
-                'child_dob' => null,
-                'child_gender' => null,
-                'bcg_received' => false,
-                'bcg_date' => null,
-                'hep0_received' => false,
-                'hep0_date' => null,
-                'opv0_received' => false,
-                'opv0_date' => null,
-                'remark' => 'Patient has incomplete ANC visits. Requires follow-up.',
-                'comments' => 'Educated on importance of completing ANC visits.',
-                'phc_id' => $phcs->first()->id,
-            ],
-            // Add 6 more patients following the same pattern...
-        ];
+                'anc1_hiv_result' => $hivResult,
+                
+                // ANC Visit 2
+                'anc_visit_2_date' => $anc2Date,
+                'tracked_before_anc2' => rand(0, 1),
+                'anc2_paid' => rand(0, 1),
+                'anc2_payment_amount' => rand(0, 1) ? rand(1000, 3000) : null,
+                'anc2_urinalysis' => rand(0, 1),
+                'anc2_iron_folate' => rand(0, 1),
+                'anc2_mms' => rand(0, 1),
+                'anc2_sp' => rand(0, 1),
+                'anc2_sba' => rand(0, 1),
+                'anc2_hiv_test' => rand(0, 1) ? 'Yes' : 'No',
+                'anc2_hiv_result_received' => rand(0, 1),
+                'anc2_hiv_result' => $hivResult,
+                
+                // ANC Visit 3
+                'anc_visit_3_date' => $anc3Date,
+                'tracked_before_anc3' => rand(0, 1),
+                'anc3_paid' => rand(0, 1),
+                'anc3_payment_amount' => rand(0, 1) ? rand(1000, 3000) : null,
+                'anc3_urinalysis' => rand(0, 1),
+                'anc3_iron_folate' => rand(0, 1),
+                'anc3_mms' => rand(0, 1),
+                'anc3_sp' => rand(0, 1),
+                'anc3_sba' => rand(0, 1),
+                'anc3_hiv_test' => rand(0, 1) ? 'Yes' : 'No',
+                'anc3_hiv_result_received' => rand(0, 1),
+                'anc3_hiv_result' => $hivResult,
+                
+                // ANC Visit 4
+                'anc_visit_4_date' => $anc4Date,
+                'tracked_before_anc4' => $anc4Date ? rand(0, 1) : false,
+                'anc4_paid' => $anc4Date ? rand(0, 1) : false,
+                'anc4_payment_amount' => $anc4Date && rand(0, 1) ? rand(1000, 3000) : null,
+                'anc4_urinalysis' => $anc4Date ? rand(0, 1) : false,
+                'anc4_iron_folate' => $anc4Date ? rand(0, 1) : false,
+                'anc4_mms' => $anc4Date ? rand(0, 1) : false,
+                'anc4_sp' => $anc4Date ? rand(0, 1) : false,
+                'anc4_sba' => $anc4Date ? rand(0, 1) : false,
+                'anc4_hiv_test' => $anc4Date ? (rand(0, 1) ? 'Yes' : 'No') : null,
+                'anc4_hiv_result_received' => $anc4Date ? rand(0, 1) : false,
+                'anc4_hiv_result' => $anc4Date ? $hivResult : null,
+                
+                'additional_anc_count' => rand(0, 2),
+                'place_of_delivery' => $hasDelivered ? ['Health Facility', 'Home', 'Other'][rand(0, 2)] : null,
+                'delivery_kits_received' => $hasDelivered ? rand(0, 1) : false,
+                'type_of_delivery' => $hasDelivered ? ['Normal (Vaginal)', 'Cesarean Section'][rand(0, 1)] : null,
+                'delivery_outcome' => $hasDelivered ? ['Live birth', 'Stillbirth'][rand(0, 1)] : null,
+                'date_of_delivery' => $deliveryDate,
+                
+                // PNC Visits
+                'pnc_visit_1' => $hasDelivered ? Carbon::parse($deliveryDate)->addDays(rand(1, 3))->format('Y-m-d') : null,
+                'pnc_visit_2' => $hasDelivered ? Carbon::parse($deliveryDate)->addDays(rand(10, 20))->format('Y-m-d') : null,
+                'pnc_visit_3' => $hasDelivered && rand(0, 1) ? Carbon::parse($deliveryDate)->addDays(rand(25, 40))->format('Y-m-d') : null,
+                
+                // Insurance
+                'health_insurance_status' => $insuranceStatus,
+                'insurance_type' => $insuranceType,
+                'insurance_other_specify' => $insuranceType === 'Other' ? 'Private Insurance' : null,
+                'insurance_satisfaction' => $insuranceStatus === 'Yes' ? rand(0, 1) : false,
+                
+                // Family Planning
+                'fp_using' => rand(0, 1),
+                'fp_male_condom' => rand(0, 1),
+                'fp_female_condom' => rand(0, 1),
+                'fp_pill' => rand(0, 1),
+                'fp_injectable' => rand(0, 1),
+                'fp_implant' => rand(0, 1),
+                'fp_iud' => rand(0, 1),
+                'fp_other' => rand(0, 1),
+                'fp_other_specify' => rand(0, 1) ? 'Natural Method' : null,
+                
+                // Child information (if delivered)
+                'child_name' => $hasDelivered ? $this->generateChildName($i) : null,
+                'child_dob' => $deliveryDate,
+                'child_gender' => $hasDelivered ? ['Male', 'Female'][rand(0, 1)] : null,
+                
+                // Immunization
+                'bcg_received' => $hasDelivered,
+                'bcg_date' => $hasDelivered ? $deliveryDate : null,
+                'hep0_received' => $hasDelivered,
+                'hep0_date' => $hasDelivered ? $deliveryDate : null,
+                'opv0_received' => $hasDelivered,
+                'opv0_date' => $hasDelivered ? $deliveryDate : null,
+                'penta1_received' => $hasDelivered,
+                'penta1_date' => $hasDelivered ? Carbon::parse($deliveryDate)->addDays(rand(28, 42))->format('Y-m-d') : null,
+                'pcv1_received' => $hasDelivered,
+                'pcv1_date' => $hasDelivered ? Carbon::parse($deliveryDate)->addDays(rand(28, 42))->format('Y-m-d') : null,
+                'opv1_received' => $hasDelivered,
+                'opv1_date' => $hasDelivered ? Carbon::parse($deliveryDate)->addDays(rand(28, 42))->format('Y-m-d') : null,
+                'rota1_received' => $hasDelivered,
+                'rota1_date' => $hasDelivered ? Carbon::parse($deliveryDate)->addDays(rand(28, 42))->format('Y-m-d') : null,
+                'ipv1_received' => $hasDelivered,
+                'ipv1_date' => $hasDelivered ? Carbon::parse($deliveryDate)->addDays(rand(28, 42))->format('Y-m-d') : null,
+                
+                'remark' => $this->generateRemark($hasDelivered, $hivResult),
+                'comments' => $this->generateComments($i),
+                'phc_id' => $phc->id,
+            ];
+
+            $patients[] = $patient;
+        }
 
         foreach ($patients as $patientData) {
             // Generate unique ID
@@ -483,6 +217,122 @@ class PatientSeeder extends Seeder
             Patient::create($patientData);
         }
 
-        $this->command->info('10 sample patients created successfully!');
+        $this->command->info('60 sample patients for 2025 created successfully!');
+    }
+
+    /**
+     * Generate woman names
+     */
+    private function generateWomanName($index): string
+    {
+        $firstNames = ['Fatima', 'Halima', 'Zainab', 'Aisha', 'Maryam', 'Hauwa', 'Amina', 'Rahma', 'Safiya', 'Khadija'];
+        $lastNames = ['Sani', 'Yusuf', 'Abdullahi', 'Bello', 'Ibrahim', 'Mohammed', 'Umar', 'Musa', 'Omar', 'Ali'];
+        
+        $firstName = $firstNames[array_rand($firstNames)];
+        $lastName = $lastNames[array_rand($lastNames)];
+        
+        return $firstName . ' ' . $lastName;
+    }
+
+    /**
+     * Generate husband names
+     */
+    private function generateHusbandName($index): string
+    {
+        $firstNames = ['Mohammed', 'Yusuf', 'Abdullahi', 'Bello', 'Ibrahim', 'Sani', 'Umar', 'Musa', 'Omar', 'Ali'];
+        $lastNames = ['Sani', 'Yusuf', 'Abdullahi', 'Bello', 'Ibrahim', 'Mohammed', 'Umar', 'Musa', 'Omar', 'Ali'];
+        
+        $firstName = $firstNames[array_rand($firstNames)];
+        $lastName = $lastNames[array_rand($lastNames)];
+        
+        return $firstName . ' ' . $lastName;
+    }
+
+    /**
+     * Generate child names
+     */
+    private function generateChildName($index): string
+    {
+        $firstNames = ['Amina', 'Fatima', 'Halima', 'Zainab', 'Mohammed', 'Yusuf', 'Abdullahi', 'Ibrahim'];
+        $lastNames = ['Sani', 'Yusuf', 'Abdullahi', 'Bello', 'Ibrahim', 'Mohammed'];
+        
+        $firstName = $firstNames[array_rand($firstNames)];
+        $lastName = $lastNames[array_rand($lastNames)];
+        
+        return $firstName . ' ' . $lastName;
+    }
+
+    /**
+     * Generate communities
+     */
+    private function generateCommunity($index): string
+    {
+        $communities = ['Zaria', 'Daura', 'Katsina', 'Funtua', 'Malumfashi', 'Dutsinma', 'Kankia', 'Mani', 'Bindawa', 'Ingawa'];
+        return $communities[array_rand($communities)];
+    }
+
+    /**
+     * Generate addresses
+     */
+    private function generateAddress($index): string
+    {
+        $streets = ['Main Street', 'Market Road', 'School Road', 'Hospital Road', 'Station Road', 'Airport Road', 'Church Road', 'Mosque Road'];
+        $areas = ['Ungogo', 'Sabon Gari', 'Tudun Wada', 'Nassarawa', 'GRA', 'Low Cost', 'Old Airport'];
+        
+        $street = $streets[array_rand($streets)];
+        $area = $areas[array_rand($areas)];
+        
+        return rand(1, 999) . ' ' . $street . ', ' . $area;
+    }
+
+    /**
+     * Generate remarks based on patient status
+     */
+    private function generateRemark($hasDelivered, $hivResult): string
+    {
+        $remarks = [];
+        
+        if ($hasDelivered) {
+            $remarks[] = 'Successfully delivered at health facility.';
+            $remarks[] = 'Home delivery with good outcome.';
+            $remarks[] = 'Regular ANC attendance throughout pregnancy.';
+            $remarks[] = 'Cooperative patient with good follow-up.';
+        } else {
+            $remarks[] = 'Regular ANC visits ongoing.';
+            $remarks[] = 'Patient responsive to ANC services.';
+            $remarks[] = 'Good pregnancy progression.';
+            $remarks[] = 'Requires follow-up for next ANC visit.';
+        }
+        
+        if ($hivResult === 'Positive') {
+            $remarks[] = 'HIV positive - on ART treatment.';
+        }
+        
+        if (rand(0, 1)) {
+            $remarks[] = 'Family planning education provided.';
+        }
+        
+        return implode(' ', array_slice($remarks, 0, rand(1, 3)));
+    }
+
+    /**
+     * Generate comments
+     */
+    private function generateComments($index): string
+    {
+        $comments = [
+            'Regular follow-up maintained throughout pregnancy.',
+            'Showed good understanding of maternal health practices.',
+            'Encouraged facility delivery for next pregnancy.',
+            'Educated on importance of completing ANC visits.',
+            'Good adherence to medication and supplements.',
+            'Active participation in health education sessions.',
+            'Family support system appears strong.',
+            'Transportation challenges noted.',
+            'Financial constraints affecting service utilization.',
+            'Excellent patient compliance with appointments.'
+        ];
+        
+        return $comments[array_rand($comments)];
     }
 }

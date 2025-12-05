@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   FileText,
+  Apple,
 } from "lucide-react";
 
 export default function AdminLayout({ children, title = "Dashboard" }) {
@@ -49,9 +50,12 @@ export default function AdminLayout({ children, title = "Dashboard" }) {
 
         <nav className="p-4 space-y-2">
           <NavItem href="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
-          {/* <NavItem href="/admin/reports" icon={BarChart3} label="Reports" /> */}
           <NavItem href="/admin/statistics" icon={Database} label="Statistics" />
-          {/* <NavItem href="/admin/manage-data" icon={Database} label="Manage Data" /> */}
+          
+          {/* New Nutrition Reports Menu Item */}
+          <NavItem href="/admin/nutrition-reports" icon={Apple} label="Nutrition Reports" />
+          <NavItem href="/admin/nutrition-statistics" icon={BarChart3} label="Nutrition Statistics" />
+          
           <NavItem href="/admin/manage-locations" icon={MapPin} label="Manage Locations" />
           <NavItem href="/admin/manage-facilities" icon={Hospital} label="Manage Facilities" />
           <NavItem href="/admin/records" icon={FileText} label="Records" />

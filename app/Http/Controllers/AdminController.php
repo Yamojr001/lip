@@ -12,6 +12,8 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 
 class AdminController extends Controller
 {
@@ -20,254 +22,642 @@ class AdminController extends Controller
      */
     public function index()
     {
-        // Get current year range
+        // Remove year filter to include ALL patients
+        $patients = Patient::with(['lga', 'ward', 'healthFacility'])->latest()->take(10)->get();
+        $allPatients = Patient::all();
         $currentYear = now()->year;
-        $startDate = $currentYear . '-01-01';
-        $endDate = $currentYear . '-12-31';
 
-        // Get all patients for current year across entire state
-        $patients = Patient::whereBetween('date_of_registration', [$startDate, $endDate])->get();
-
-        // Calculate comprehensive statistics
-        $stats = $this->calculateComprehensiveStatistics($patients);
-        $chartData = $this->generateComprehensiveChartData($patients, $currentYear);
-
+        // Calculate comprehensive statistics and chart data
+        $dashboardData = $this->getAdminComprehensiveStatistics($allPatients, $currentYear);
+        
         // Get basic stats for dashboard
-        $totalPatients = Patient::count();
         $totalFacilities = Phc::count();
         $totalStaff = User::where('role', 'phc_staff')->count();
         $totalLgas = Lga::count();
         $totalWards = Ward::count();
 
-        // Get recent patients for activity feed
-        $recentPatients = Patient::with(['lga', 'ward', 'healthFacility'])
-                                ->latest()
-                                ->take(5)
-                                ->get();
+        // Get facilities for facilities tab
+        $facilities = Phc::with(['ward.lga'])->get();
+
+        // Get detailed data for all tabs
+        $ancData = $this->getAncDetailedData($allPatients);
+        $deliveryData = $this->getDeliveryDetailedData($allPatients);
+        $immunizationData = $this->getImmunizationDetailedData($allPatients);
+        $fpData = $this->getFamilyPlanningDetailedData($allPatients);
+        $hivData = $this->getHivDetailedData($allPatients);
+        $facilityStats = $this->getFacilityPerformanceStats($facilities);
 
         return Inertia::render('Admin/Dashboard', [
-            'statistics' => array_merge($stats, [
+            'statistics' => array_merge($dashboardData['statistics'], [
                 'totalFacilities' => $totalFacilities,
                 'totalLgas' => $totalLgas,
                 'totalWards' => $totalWards,
                 'totalStaff' => $totalStaff,
             ]),
-            'chartData' => $chartData,
+            'chartData' => $dashboardData['chartData'],
             'currentYear' => $currentYear,
-            'recentPatients' => $recentPatients,
+            'patients' => $patients,
+            'facilities' => $facilities,
+            'ancData' => $ancData,
+            'deliveryData' => $deliveryData,
+            'immunizationData' => $immunizationData,
+            'fpData' => $fpData,
+            'hivData' => $hivData,
+            'facilityStats' => $facilityStats,
         ]);
     }
 
     /**
-     * Calculate comprehensive statistics including all form data
+     * Calculate comprehensive statistics and chart data for the Admin Dashboard.
+     * @param Collection $patients
+     * @param int $currentYear
+     * @return array
      */
-    private function calculateComprehensiveStatistics($patients)
+    private function getAdminComprehensiveStatistics(Collection $patients, int $currentYear): array
     {
         $totalRegistered = $patients->count();
         
         if ($totalRegistered === 0) {
-            return [
-                'totalRegistered' => 0,
-                'anc4Rate' => 0,
-                'hospitalDeliveryRate' => 0,
-                'kitsReceivedRate' => 0,
-                'pnc1Within48hRate' => 0,
-                'liveBirthRate' => 0,
-                'ancCompletion' => [
-                    'anc1Only' => 0, 'anc2Only' => 0, 'anc3Only' => 0, 'anc4Completed' => 0,
-                    'anc5Only' => 0, 'anc6Only' => 0, 'anc7Only' => 0, 'anc8Completed' => 0,
-                ],
-                'pregnancyTracking' => [
-                    'sevenMonths' => 0, 'eightMonths' => 0, 'dueThisMonth' => 0,
-                ],
-                'detailedCounts' => [
-                    'anc4Completed' => 0, 'totalDelivered' => 0, 'pncIncomplete' => 0,
-                    'stillbirths' => 0, 'liveBirths' => 0, 'hospitalDeliveries' => 0,
-                    'kitsReceived' => 0, 'pnc1Within48h' => 0,
-                ],
-                'trends' => [
-                    'totalPatients' => 0, 'deliveryRate' => 0, 'facilityDeliveryRate' => 0, 
-                    'liveBirths' => 0, 'anc4Rate' => 0,
-                ],
-                'serviceUtilization' => [
-                    'anc_services' => 0, 'delivery_services' => 0, 'pnc_services' => 0,
-                    'fp_services' => 0, 'immunization_services' => 0, 'hiv_testing' => 0,
-                ]
-            ];
+            return $this->generateEmptyDashboardData($currentYear);
         }
 
-        // ANC Statistics - Count patients with each ANC visit
-        $anc1Completed = $patients->whereNotNull('anc_visit_1_date')->count();
-        $anc2Completed = $patients->whereNotNull('anc_visit_2_date')->count();
-        $anc3Completed = $patients->whereNotNull('anc_visit_3_date')->count();
-        $anc4Completed = $patients->whereNotNull('anc_visit_4_date')->count();
-        $anc5Completed = $patients->whereNotNull('anc_visit_5_date')->count();
-        $anc6Completed = $patients->whereNotNull('anc_visit_6_date')->count();
-        $anc7Completed = $patients->whereNotNull('anc_visit_7_date')->count();
-        $anc8Completed = $patients->whereNotNull('anc_visit_8_date')->count();
+        $delivered = $patients->whereNotNull('date_of_delivery')->count();
 
-        $anc4Rate = round(($anc4Completed / $totalRegistered) * 100, 1);
+        // Core KPIs
+        $facilityDeliveries = $patients->where('place_of_delivery', 'Health Facility')->count();
+        $liveBirths = $patients->where('delivery_outcome', 'Live birth')->count();
+        $stillbirths = $patients->where('delivery_outcome', 'Stillbirth')->count();
+        $miscarriages = $patients->where('delivery_outcome', 'Miscarriage')->count();
+        
+        $deliveryRate = $totalRegistered > 0 ? round(($delivered / $totalRegistered) * 100, 1) : 0;
+        $facilityDeliveryRate = $delivered > 0 ? round(($facilityDeliveries / $delivered) * 100, 1) : 0;
+        $liveBirthRate = $delivered > 0 ? round(($liveBirths / $delivered) * 100, 1) : 0;
 
-        // ANC Completion Breakdown (exclusive counts)
-        $ancCompletion = [
-            'anc1Only' => $patients->filter(function ($patient) {
-                return $patient->anc_visit_1_date && !$patient->anc_visit_2_date;
-            })->count(),
-            'anc2Only' => $patients->filter(function ($patient) {
-                return $patient->anc_visit_2_date && !$patient->anc_visit_3_date;
-            })->count(),
-            'anc3Only' => $patients->filter(function ($patient) {
-                return $patient->anc_visit_3_date && !$patient->anc_visit_4_date;
-            })->count(),
-            'anc4Completed' => $anc4Completed,
-            'anc5Only' => $patients->filter(function ($patient) {
-                return $patient->anc_visit_5_date && !$patient->anc_visit_6_date;
-            })->count(),
-            'anc6Only' => $patients->filter(function ($patient) {
-                return $patient->anc_visit_6_date && !$patient->anc_visit_7_date;
-            })->count(),
-            'anc7Only' => $patients->filter(function ($patient) {
-                return $patient->anc_visit_7_date && !$patient->anc_visit_8_date;
-            })->count(),
-            'anc8Completed' => $anc8Completed,
-        ];
+        // ANC Completion Breakdown (Exclusive counts - highest visit reached)
+        $ancCompletionStats = $this->getAncCompletionStats($patients);
+        
+        // Individual ANC visit counts (1-8)
+        $ancVisitsBreakdown = $this->getAncVisitsBreakdown($patients);
+        $anc8CompletedCount = $ancVisitsBreakdown['anc8'] ?? 0;
+        $anc8Rate = $totalRegistered > 0 ? round(($anc8CompletedCount / $totalRegistered) * 100, 1) : 0;
 
         // Pregnancy Tracking
-        $pregnancyTracking = [
-            'sevenMonths' => $patients->filter(function ($patient) {
-                return $this->calculatePregnancyMonth($patient) == 7 && !$patient->date_of_delivery;
-            })->count(),
-            'eightMonths' => $patients->filter(function ($patient) {
-                return $this->calculatePregnancyMonth($patient) == 8 && !$patient->date_of_delivery;
-            })->count(),
-            'dueThisMonth' => $patients->filter(function ($patient) {
-                return $this->isDueThisMonth($patient) && !$patient->date_of_delivery;
-            })->count(),
-        ];
-
-        // Delivery Statistics
-        $deliveredPatients = $patients->whereNotNull('date_of_delivery');
-        $totalDelivered = $deliveredPatients->count();
-
-        $hospitalDeliveries = $deliveredPatients->filter(function ($patient) {
-            return $patient->place_of_delivery === 'Health Facility';
-        })->count();
-
-        $hospitalDeliveryRate = $totalDelivered > 0 ? round(($hospitalDeliveries / $totalDelivered) * 100, 1) : 0;
-
+        $pregnancyTracking = $this->getPregnancyTrackingStats($patients);
+        
         // Delivery Kits
-        $kitsReceived = $deliveredPatients->where('delivery_kits_received', true)->count();
-        $kitsReceivedRate = $totalDelivered > 0 ? round(($kitsReceived / $totalDelivered) * 100, 1) : 0;
+        $kitsReceived = $patients->where('delivery_kits_received', true)->count();
+        $kitsReceivedRate = $delivered > 0 ? round(($kitsReceived / $delivered) * 100, 1) : 0;
 
         // PNC Statistics
-        $pnc1Within48h = $deliveredPatients->filter(function ($patient) {
-            return $patient->date_of_delivery && $patient->pnc_visit_1 && 
-                   Carbon::parse($patient->pnc_visit_1)->diffInHours(Carbon::parse($patient->date_of_delivery)) <= 48;
-        })->count();
+        $pncVisitCompletion = $this->getPncVisitCompletion($patients, $delivered);
+        $incompletePNCs = $this->getPncIncompleteCount($patients, $delivered);
+        $pnc1CompletionRate = $pncVisitCompletion['pnc1_rate'];
 
-        $pnc1Within48hRate = $totalDelivered > 0 ? round(($pnc1Within48h / $totalDelivered) * 100, 1) : 0;
+        // HIV Status
+        $hivTestOutcomes = $this->getHivTestOutcomes($patients);
+        $hivPositiveCases = $hivTestOutcomes['Positive'] ?? 0;
+        $hivPositiveRate = ($hivTestOutcomes['Total Tested'] > 0) ? round(($hivTestOutcomes['Positive'] / $hivTestOutcomes['Total Tested']) * 100, 1) : 0;
 
-        // Birth Outcomes
-        $liveBirths = $deliveredPatients->where('delivery_outcome', 'Live birth')->count();
-        $liveBirthRate = $totalDelivered > 0 ? round(($liveBirths / $totalDelivered) * 100, 1) : 0;
+        // Family Planning
+        $totalFpUsers = $patients->where('fp_using', true)->count();
+        $fpUptakeRate = $totalRegistered > 0 ? round(($totalFpUsers / $totalRegistered) * 100, 1) : 0;
+        $fpMethodsUsage = $this->getFpMethodsDistribution($patients);
 
-        // Additional Metrics
-        $pncIncomplete = $deliveredPatients->filter(function ($patient) {
-            return empty($patient->pnc_visit_1) || empty($patient->pnc_visit_2);
-        })->count();
+        // Immunization
+        $immunizationCoverageDetails = $this->getImmunizationCoverageDetails($patients);
+        $bcgImmunizationRate = $immunizationCoverageDetails['bcg_received']['rate'] ?? 0;
 
-        $stillbirths = $deliveredPatients->where('delivery_outcome', 'Stillbirth')->count();
+        // Insurance
+        $healthInsuranceEnrollment = $this->getHealthInsuranceEnrollment($patients);
+        $insuranceEnrollmentRate = $totalRegistered > 0 ? round((($healthInsuranceEnrollment['Enrolled'] ?? 0) / $totalRegistered) * 100, 1) : 0;
+        
+        // Literacy
+        $literacyStatusDistribution = $this->getLiteracyStatusDistribution($patients);
+        $literacyRate = $totalRegistered > 0 ? round((($literacyStatusDistribution['Literate'] ?? 0) / $totalRegistered) * 100, 1) : 0;
+        
+        // Age Distribution
+        $ageDistribution = $this->getAgeDistribution($patients);
+        $averageAge = $this->calculateAverageAge($patients);
 
-        // Service Utilization
-        $serviceUtilization = [
-            'anc_services' => $anc1Completed,
-            'delivery_services' => $totalDelivered,
-            'pnc_services' => $deliveredPatients->whereNotNull('pnc_visit_1')->count(),
-            'fp_services' => $patients->where('fp_using', true)->count(),
-            'immunization_services' => $patients->where('bcg_received', true)->count(),
-            'hiv_testing' => $patients->where(function ($query) {
-                for ($i = 1; $i <= 8; $i++) {
-                    $query->orWhere("anc{$i}_hiv_test", 'Yes');
-                }
-            })->count(),
-        ];
+        // Delivery Type Distribution
+        $deliveryTypeDistribution = $this->getDeliveryTypeDistribution($patients);
 
-        // Calculate trends
-        $trends = $this->calculateTrends();
+        // Delivery Kits Received Stats
+        $deliveryKitsReceivedStats = $this->getDeliveryKitsReceivedStats($patients);
 
-        return [
+        // Trends (Year-over-Year simplified for admin dashboard)
+        $trends = $this->calculateTrends($currentYear);
+
+        $statistics = [
             'totalRegistered' => $totalRegistered,
-            'anc4Rate' => $anc4Rate,
-            'hospitalDeliveryRate' => $hospitalDeliveryRate,
-            'kitsReceivedRate' => $kitsReceivedRate,
-            'pnc1Within48hRate' => $pnc1Within48hRate,
+            'anc4Rate' => ($ancVisitsBreakdown['anc4'] ?? 0) > 0 ? round((($ancVisitsBreakdown['anc4'] ?? 0) / $totalRegistered) * 100, 1) : 0,
+            'anc8Rate' => $anc8Rate,
+            'facilityDeliveryRate' => $facilityDeliveryRate,
             'liveBirthRate' => $liveBirthRate,
-            'ancCompletion' => $ancCompletion,
-            'pregnancyTracking' => $pregnancyTracking,
+            'fpUptakeRate' => $fpUptakeRate,
+            'bcgImmunizationRate' => $bcgImmunizationRate,
+            'hivPositiveRate' => $hivPositiveRate,
+            'hivPositiveCases' => $hivPositiveCases, // For alert
+            'insuranceEnrollmentRate' => $insuranceEnrollmentRate,
+            'pnc1CompletionRate' => $pnc1CompletionRate,
+            'literacyRate' => $literacyRate,
+            'averageAge' => $averageAge,
+
+            'ancCompletion' => $ancCompletionStats, // Highest completed exclusive counts
+            'pregnancyTracking' => [
+                'sevenMonths' => $pregnancyTracking['sevenMonths'],
+                'eightMonths' => $pregnancyTracking['eightMonths'],
+                'dueThisMonth' => $pregnancyTracking['dueThisMonth'],
+                'overdueDeliveries' => $pregnancyTracking['overdueDeliveries'],
+                'highRiskPregnancies' => $pregnancyTracking['highRisk'],
+                'pendingAnc8' => $pregnancyTracking['pendingAnc8'],
+            ],
+            'overdueDeliveries' => $pregnancyTracking['overdueDeliveries'],
+            'highRiskPregnancies' => $pregnancyTracking['highRisk'],
+            'pendingAnc8' => $pregnancyTracking['pendingAnc8'],
+            'incompletePNCs' => $incompletePNCs,
+
             'detailedCounts' => [
-                'anc4Completed' => $anc4Completed,
-                'totalDelivered' => $totalDelivered,
-                'pncIncomplete' => $pncIncomplete,
+                'totalDelivered' => $delivered,
                 'stillbirths' => $stillbirths,
                 'liveBirths' => $liveBirths,
-                'hospitalDeliveries' => $hospitalDeliveries,
+                'hospitalDeliveries' => $facilityDeliveries,
                 'kitsReceived' => $kitsReceived,
-                'pnc1Within48h' => $pnc1Within48h,
+                'pnc1Within48h' => $pncVisitCompletion['pnc1_within_48h'] ?? 0,
             ],
-            'serviceUtilization' => $serviceUtilization,
+            'serviceUtilization' => $this->getAdminServiceUtilization($patients),
             'trends' => $trends,
+            'ancVisitsBreakdown' => $ancVisitsBreakdown,
         ];
+
+        $chartData = [
+            'monthlyRegistrations' => $this->getMonthlyRegistrationsChartData($patients, $currentYear),
+            'deliveryOutcomes' => $this->formatForRecharts($this->getDeliveryOutcomeDistribution($patients)),
+            'deliveryLocations' => $this->formatForRecharts($this->getDeliveryLocationDistribution($patients)),
+            'ancVisitCompletion' => $this->formatForRecharts($ancVisitsBreakdown, ['anc5plus']), // Exclude anc5plus from chart
+            'ancServices' => $this->formatForRecharts($this->getAncServiceCounts($patients)),
+            'hivStatus' => $this->formatForRecharts($hivTestOutcomes, ['Total Tested']),
+            'familyPlanning' => $this->formatForRecharts($fpMethodsUsage),
+            'immunizationCoverage' => $this->formatImmunizationCoverageForRecharts($immunizationCoverageDetails),
+            'pncCompletion' => $this->formatPncCompletionForRecharts($pncVisitCompletion),
+            'insuranceEnrollmentType' => $this->formatForRecharts($healthInsuranceEnrollment, ['Enrolled', 'Not Enrolled']),
+            'literacyStatusDistribution' => $this->formatForRecharts($literacyStatusDistribution),
+            'ageDistribution' => $this->formatForRecharts($ageDistribution),
+            'deliveryTypeDistribution' => $this->formatForRecharts($deliveryTypeDistribution),
+            'deliveryKitsReceived' => $this->formatForRecharts($deliveryKitsReceivedStats),
+        ];
+
+        return compact('statistics', 'chartData');
     }
 
     /**
-     * Generate comprehensive chart data for all metrics
+     * Generate empty dashboard data structure for when no patients are found.
+     * @param int $currentYear
+     * @return array
      */
-    private function generateComprehensiveChartData($patients, $currentYear)
+    private function generateEmptyDashboardData(int $currentYear): array
     {
-        if ($patients->count() === 0) {
-            return $this->generateEmptyChartData();
+        // Populate monthly registrations with 0s for chart display even if no data
+        $emptyMonthlyReg = [];
+        for ($month = 1; $month <= 12; $month++) {
+            $monthKey = $currentYear . '-' . str_pad($month, 2, '0', STR_PAD_LEFT);
+            $emptyMonthlyReg[$monthKey] = 0;
         }
 
         return [
-            // Monthly registrations
-            'monthlyRegistrations' => $this->getMonthlyRegistrations($patients, $currentYear),
-            
-            // Delivery outcomes
-            'deliveryOutcomes' => $this->getDeliveryOutcomes($patients),
-            
-            // ANC completion
-            'ancCompletion' => $this->getANCCompletion($patients),
-            
-            // Literacy status
-            'literacyStatus' => $this->getLiteracyStatus($patients),
-            
-            // Insurance status
-            'insuranceStatus' => $this->getInsuranceStatus($patients),
-            
-            // HIV status
-            'hivStatus' => $this->getHIVStatus($patients),
-            
-            // Family planning
-            'familyPlanning' => $this->getFamilyPlanning($patients),
-            
-            // Immunization
-            'immunization' => $this->getImmunization($patients),
-            
-            // Service utilization
-            'serviceUtilization' => $this->getServiceUtilization($patients),
+            'statistics' => [
+                'totalRegistered' => 0, 'anc4Rate' => 0, 'anc8Rate' => 0, 'facilityDeliveryRate' => 0,
+                'liveBirthRate' => 0, 'fpUptakeRate' => 0, 'bcgImmunizationRate' => 0,
+                'hivPositiveRate' => 0, 'hivPositiveCases' => 0, 'insuranceEnrollmentRate' => 0,
+                'pnc1CompletionRate' => 0, 'literacyRate' => 0, 'averageAge' => null,
 
-            // ANC Services breakdown
-            'ancServices' => $this->getAncServices($patients),
+                'overdueDeliveries' => 0, 'highRiskPregnancies' => 0, 'pendingAnc8' => 0, 'incompletePNCs' => 0,
 
-            // Payment statistics
-            'paymentStats' => $this->getPaymentStatistics($patients),
+                'ancCompletion' => array_fill_keys(['anc1Only', 'anc2Only', 'anc3Only', 'anc4Only', 'anc5Only', 'anc6Only', 'anc7Only', 'anc8Completed', 'noAnc'], 0),
+                'pregnancyTracking' => ['sevenMonths' => 0, 'eightMonths' => 0, 'dueThisMonth' => 0, 'overdueDeliveries' => 0, 'highRisk' => 0, 'pendingAnc8' => 0],
+                'detailedCounts' => [
+                    'totalDelivered' => 0, 'stillbirths' => 0, 'liveBirths' => 0, 'hospitalDeliveries' => 0,
+                    'kitsReceived' => 0, 'pnc1Within48h' => 0,
+                ],
+                'serviceUtilization' => array_fill_keys(['ANC Services', 'Delivery Services', 'PNC Services', 'FP Services', 'Immunization Services', 'HIV Testing'], 0),
+                'trends' => [
+                    'totalPatients' => 0, 'anc8CompletionRate' => 0, 'facilityDeliveryRate' => 0,
+                    'liveBirths' => 0, 'fpUptakeRate' => 0, 'bcgImmunization' => 0,
+                    'hivPositiveCases' => 0, 'insuranceEnrollmentRate' => 0,
+                ],
+            ],
+            'chartData' => [
+                'monthlyRegistrations' => $emptyMonthlyReg,
+                'deliveryOutcomes' => [], 'deliveryLocations' => [], 'ancVisitCompletion' => [],
+                'ancServices' => [], 'hivStatus' => [], 'familyPlanning' => [],
+                'immunizationCoverage' => [], 'pncCompletion' => [], 'insuranceEnrollmentType' => [],
+                'literacyStatusDistribution' => [], 'ageDistribution' => [], 'deliveryTypeDistribution' => [],
+                'deliveryKitsReceived' => [],
+            ],
         ];
     }
 
     /**
-     * Get monthly registrations data
+     * Get ANC completion stats based on highest visit reached.
+     * @param Collection $patients
+     * @return array
      */
-    private function getMonthlyRegistrations($patients, $currentYear)
+    private function getAncCompletionStats(Collection $patients): array
+    {
+        $stats = [
+            'anc1Only' => 0, 'anc2Only' => 0, 'anc3Only' => 0, 'anc4Only' => 0,
+            'anc5Only' => 0, 'anc6Only' => 0, 'anc7Only' => 0, 'anc8Completed' => 0,
+            'noAnc' => 0,
+        ];
+
+        foreach ($patients as $patient) {
+            $highestAnc = 0;
+            for ($i = 8; $i >= 1; $i--) {
+                if (!empty($patient->{"anc_visit_{$i}_date"})) {
+                    $highestAnc = $i;
+                    break;
+                }
+            }
+
+            if ($highestAnc > 0) {
+                if ($highestAnc == 8) {
+                    $stats['anc8Completed']++;
+                } else {
+                    $stats["anc{$highestAnc}Only"]++;
+                }
+            } else {
+                $stats['noAnc']++;
+            }
+        }
+        return $stats;
+    }
+
+    /**
+     * Get ANC visits breakdown for visits 1-8 (robust version).
+     * @param Collection $patients
+     * @return array
+     */
+    private function getAncVisitsBreakdown(Collection $patients): array
+    {
+        $breakdown = [];
+        
+        for ($i = 1; $i <= 8; $i++) {
+            $fieldName = "anc_visit_{$i}_date";
+            $breakdown["anc{$i}"] = $patients->filter(function ($patient) use ($fieldName) {
+                $dateValue = $patient->$fieldName;
+                return !empty($dateValue) && $dateValue !== null && trim($dateValue) !== '';
+            })->count();
+        }
+        
+        $breakdown['anc5plus'] = $patients->sum('additional_anc_count'); // Sum of additional counts
+        
+        return $breakdown;
+    }
+
+    /**
+     * Get pregnancy tracking statistics.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getPregnancyTrackingStats(Collection $patients): array
+    {
+        $sevenMonths = $patients->filter(function ($patient) {
+            return $this->calculatePregnancyMonth($patient) == 7 && !$patient->date_of_delivery;
+        })->count();
+        $eightMonths = $patients->filter(function ($patient) {
+            return $this->calculatePregnancyMonth($patient) == 8 && !$patient->date_of_delivery;
+        })->count();
+        $dueThisMonth = $patients->filter(function ($patient) {
+            return $this->isDueThisMonth($patient) && !$patient->date_of_delivery;
+        })->count();
+        $overdueDeliveries = $patients->filter(function($patient) {
+            return !$patient->date_of_delivery && $patient->edd && Carbon::parse($patient->edd)->isPast();
+        })->count();
+
+        $highRisk = $patients->filter(function($patient) {
+            $age = $patient->age;
+            $isOlder = $age && $age >= 35;
+            $isYounger = $age && $age <= 18;
+            $pregnancyMonth = $this->calculatePregnancyMonth($patient);
+            
+            // Example: High risk if very young/old and in late pregnancy stages
+            return (!$patient->date_of_delivery && ($isOlder || $isYounger) && ($pregnancyMonth >= 7 && $pregnancyMonth <=9));
+        })->count();
+
+        // Calculate pending ANC8 (patients at 8 months pregnant but not completed ANC8)
+        $pendingAnc8 = $patients->filter(function($patient) {
+            $pregnancyMonth = $this->calculatePregnancyMonth($patient);
+            return !$patient->date_of_delivery && $pregnancyMonth >= 8 && (!($patient->anc_visit_8_date) || empty($patient->anc_visit_8_date));
+        })->count();
+
+        return [
+            'sevenMonths' => $sevenMonths,
+            'eightMonths' => $eightMonths,
+            'dueThisMonth' => $dueThisMonth,
+            'overdueDeliveries' => $overdueDeliveries,
+            'highRisk' => $highRisk,
+            'pendingAnc8' => $pendingAnc8,
+        ];
+    }
+
+    /**
+     * Get ANC services provided counts.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getAncServiceCounts(Collection $patients): array
+    {
+        $serviceCounts = [
+            'Urinalysis' => 0, 'Iron Folate' => 0, 'MMS' => 0, 'SP' => 0, 'SBA' => 0
+        ];
+
+        foreach ($patients as $patient) {
+            for ($i = 1; $i <= 8; $i++) {
+                if ($patient->{"anc{$i}_urinalysis"}) $serviceCounts['Urinalysis']++;
+                if ($patient->{"anc{$i}_iron_folate"}) $serviceCounts['Iron Folate']++;
+                if ($patient->{"anc{$i}_mms"}) $serviceCounts['MMS']++;
+                if ($patient->{"anc{$i}_sp"}) $serviceCounts['SP']++;
+                if ($patient->{"anc{$i}_sba"}) $serviceCounts['SBA']++;
+            }
+        }
+        return $serviceCounts;
+    }
+
+    /**
+     * Get delivery outcome distribution.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getDeliveryOutcomeDistribution(Collection $patients): array
+    {
+        return $patients->whereNotNull('delivery_outcome')
+                        ->countBy('delivery_outcome')
+                        ->toArray();
+    }
+
+    /**
+     * Get delivery location distribution.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getDeliveryLocationDistribution(Collection $patients): array
+    {
+        return $patients->whereNotNull('place_of_delivery')
+                        ->countBy('place_of_delivery')
+                        ->toArray();
+    }
+
+    /**
+     * Get PNC visit completion counts and rates.
+     * @param Collection $patients
+     * @param int $deliveredCount
+     * @return array
+     */
+    private function getPncVisitCompletion(Collection $patients, int $deliveredCount): array
+    {
+        $pnc1_received = $patients->whereNotNull('date_of_delivery')->whereNotNull('pnc_visit_1')->count();
+        $pnc2_received = $patients->whereNotNull('date_of_delivery')->whereNotNull('pnc_visit_2')->count();
+        $pnc3_received = $patients->whereNotNull('date_of_delivery')->whereNotNull('pnc_visit_3')->count();
+
+        return [
+            'pnc1_received' => $pnc1_received,
+            'pnc2_received' => $pnc2_received,
+            'pnc3_received' => $pnc3_received,
+            'pnc1_rate' => $deliveredCount > 0 ? round(($pnc1_received / $deliveredCount) * 100, 1) : 0,
+            'pnc2_rate' => $deliveredCount > 0 ? round(($pnc2_received / $deliveredCount) * 100, 1) : 0,
+            'pnc3_rate' => $deliveredCount > 0 ? round(($pnc3_received / $deliveredCount) * 100, 1) : 0,
+            'pnc1_within_48h' => $patients->whereNotNull('date_of_delivery')->filter(function ($patient) {
+                return $patient->date_of_delivery && $patient->pnc_visit_1 && 
+                       Carbon::parse($patient->pnc_visit_1)->diffInHours(Carbon::parse($patient->date_of_delivery)) <= 48;
+            })->count(),
+        ];
+    }
+
+    /**
+     * Get count of delivered patients with incomplete PNCs.
+     * @param Collection $patients
+     * @param int $deliveredCount
+     * @return int
+     */
+    private function getPncIncompleteCount(Collection $patients, int $deliveredCount): int
+    {
+        // A patient has incomplete PNCs if they delivered but at least one of PNC1, PNC2, PNC3 is null
+        return $patients->whereNotNull('date_of_delivery')
+                        ->filter(function($patient) {
+                            return is_null($patient->pnc_visit_1) || is_null($patient->pnc_visit_2) || is_null($patient->pnc_visit_3);
+                        })->count();
+    }
+
+    /**
+     * Get HIV test outcomes.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getHivTestOutcomes(Collection $patients): array
+    {
+        $outcomes = [
+            'Positive' => 0,
+            'Negative' => 0,
+            'Not Tested' => 0, // No HIV test explicitly recorded
+            'Results Not Received' => 0, // Tested, but result not yet received
+            'Total Tested' => 0, // Any patient who has "Yes" for HIV test in any ANC
+        ];
+
+        $patientsWithAnyHivTest = collect(); // To avoid double counting 'Not Tested'
+
+        foreach ($patients as $patient) {
+            $hasAnyTest = false;
+            for ($i = 1; $i <= 8; $i++) {
+                $hivTestField = "anc{$i}_hiv_test";
+                $hivResultReceivedField = "anc{$i}_hiv_result_received";
+                $hivResultField = "anc{$i}_hiv_result";
+
+                if ($patient->$hivTestField === 'Yes') {
+                    $outcomes['Total Tested']++; // Count every test instance
+                    $hasAnyTest = true;
+
+                    if ($patient->$hivResultReceivedField) {
+                        if ($patient->$hivResultField === 'Positive') {
+                            $outcomes['Positive']++;
+                        } elseif ($patient->$hivResultField === 'Negative') {
+                            $outcomes['Negative']++;
+                        }
+                    } else {
+                        $outcomes['Results Not Received']++;
+                    }
+                }
+            }
+            if ($hasAnyTest) {
+                $patientsWithAnyHivTest->push($patient->id);
+            }
+        }
+
+        // 'Not Tested' are patients who never had a 'Yes' for hiv_test across all ANCs.
+        // We need unique patients for this count to match frontend logic.
+        $totalRegistered = $patients->count();
+        $outcomes['Not Tested'] = $totalRegistered - $patientsWithAnyHivTest->unique()->count();
+        
+        return $outcomes;
+    }
+
+    /**
+     * Get family planning methods distribution.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getFpMethodsDistribution(Collection $patients): array
+    {
+        $methods = [
+            'Male Condom' => 0, 'Female Condom' => 0, 'Pill' => 0,
+            'Injectable' => 0, 'Implant' => 0, 'IUD' => 0, 'Other' => 0
+        ];
+
+        foreach ($patients as $patient) {
+            if ($patient->fp_using) {
+                if ($patient->fp_male_condom) $methods['Male Condom']++;
+                if ($patient->fp_female_condom) $methods['Female Condom']++;
+                if ($patient->fp_pill) $methods['Pill']++;
+                if ($patient->fp_injectable) $methods['Injectable']++;
+                if ($patient->fp_implant) $methods['Implant']++;
+                if ($patient->fp_iud) $methods['IUD']++;
+                if ($patient->fp_other) $methods['Other']++;
+            }
+        }
+        return array_filter($methods); // Remove methods with 0 count
+    }
+
+    /**
+     * Get health insurance enrollment statistics.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getHealthInsuranceEnrollment(Collection $patients): array
+    {
+        $stats = [
+            'Enrolled' => 0,
+            'Not Enrolled' => 0,
+            'Kachima' => 0,
+            'NHIS' => 0,
+            'Others' => 0,
+        ];
+
+        foreach ($patients as $patient) {
+            if ($patient->health_insurance_status === 'Yes') {
+                $stats['Enrolled']++;
+                if (!empty($patient->insurance_type)) {
+                    $stats[$patient->insurance_type] = ($stats[$patient->insurance_type] ?? 0) + 1;
+                }
+            } else {
+                $stats['Not Enrolled']++;
+            }
+        }
+        return $stats;
+    }
+
+    /**
+     * Get detailed child immunization coverage.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getImmunizationCoverageDetails(Collection $patients): array
+    {
+        $childrenWithDobCount = $patients->whereNotNull('child_dob')->count();
+        $coverage = [];
+
+        $vaccines = [
+            'bcg', 'hep0', 'opv0', 'penta1', 'pcv1', 'opv1', 'rota1', 'ipv1',
+            'penta2', 'pcv2', 'rota2', 'opv2', 'penta3', 'pcv3', 'opv3', 'rota3',
+            'ipv2', 'measles', 'yellow_fever', 'vitamin_a', 'mcv2'
+        ];
+
+        foreach ($vaccines as $vaccine) {
+            $receivedCount = $patients->where("{$vaccine}_received", true)->count();
+            $coverage["{$vaccine}_received"] = [
+                'count' => $receivedCount,
+                'rate' => $childrenWithDobCount > 0 ? round(($receivedCount / $childrenWithDobCount) * 100, 1) : 0
+            ];
+        }
+        return $coverage;
+    }
+
+    /**
+     * Get literacy status distribution.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getLiteracyStatusDistribution(Collection $patients): array
+    {
+        return $patients->countBy('literacy_status')->toArray();
+    }
+
+    /**
+     * Get age distribution in ranges.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getAgeDistribution(Collection $patients): array
+    {
+        $ageGroups = [
+            '15-19' => 0, '20-24' => 0, '25-29' => 0, '30-34' => 0,
+            '35-39' => 0, '40-44' => 0, '45-50' => 0, 'Other' => 0
+        ];
+
+        foreach ($patients as $patient) {
+            if ($patient->age >= 15 && $patient->age <= 19) $ageGroups['15-19']++;
+            elseif ($patient->age >= 20 && $patient->age <= 24) $ageGroups['20-24']++;
+            elseif ($patient->age >= 25 && $patient->age <= 29) $ageGroups['25-29']++;
+            elseif ($patient->age >= 30 && $patient->age <= 34) $ageGroups['30-34']++;
+            elseif ($patient->age >= 35 && $patient->age <= 39) $ageGroups['35-39']++;
+            elseif ($patient->age >= 40 && $patient->age <= 44) $ageGroups['40-44']++;
+            elseif ($patient->age >= 45 && $patient->age <= 50) $ageGroups['45-50']++;
+            else $ageGroups['Other']++;
+        }
+        return $ageGroups;
+    }
+
+    /**
+     * Calculate average age of patients.
+     * @param Collection $patients
+     * @return float|null
+     */
+    private function calculateAverageAge(Collection $patients): ?float
+    {
+        return $patients->avg('age');
+    }
+
+    /**
+     * Get delivery type distribution.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getDeliveryTypeDistribution(Collection $patients): array
+    {
+        return $patients->whereNotNull('type_of_delivery')
+                        ->countBy('type_of_delivery')
+                        ->toArray();
+    }
+
+    /**
+     * Get delivery kits received statistics.
+     * @param Collection $patients
+     * @return array
+     */
+    private function getDeliveryKitsReceivedStats(Collection $patients): array
+    {
+        $stats = [
+            'Yes' => $patients->where('delivery_kits_received', true)->count(),
+            'No' => $patients->where('delivery_kits_received', false)->count(),
+        ];
+        return $stats;
+    }
+
+    /**
+     * Get monthly registrations data formatted for Recharts.
+     * @param Collection $patients
+     * @param int $currentYear
+     * @return array
+     */
+    private function getMonthlyRegistrationsChartData(Collection $patients, int $currentYear): array
     {
         $monthlyData = [];
         for ($month = 1; $month <= 12; $month++) {
@@ -282,149 +672,11 @@ class AdminController extends Controller
     }
 
     /**
-     * Get delivery outcomes
+     * Get service utilization for Admin.
+     * @param Collection $patients
+     * @return array
      */
-    private function getDeliveryOutcomes($patients)
-    {
-        $delivered = $patients->whereNotNull('date_of_delivery');
-        return [
-            'Live Birth' => $delivered->where('delivery_outcome', 'Live birth')->count(),
-            'Stillbirth' => $delivered->where('delivery_outcome', 'Stillbirth')->count(),
-            'Miscarriage' => $delivered->where('delivery_outcome', 'Miscarriage')->count(),
-        ];
-    }
-
-    /**
-     * Get ANC completion data
-     */
-    private function getANCCompletion($patients)
-    {
-        return [
-            'ANC1' => $patients->whereNotNull('anc_visit_1_date')->count(),
-            'ANC2' => $patients->whereNotNull('anc_visit_2_date')->count(),
-            'ANC3' => $patients->whereNotNull('anc_visit_3_date')->count(),
-            'ANC4' => $patients->whereNotNull('anc_visit_4_date')->count(),
-            'ANC5' => $patients->whereNotNull('anc_visit_5_date')->count(),
-            'ANC6' => $patients->whereNotNull('anc_visit_6_date')->count(),
-            'ANC7' => $patients->whereNotNull('anc_visit_7_date')->count(),
-            'ANC8' => $patients->whereNotNull('anc_visit_8_date')->count(),
-        ];
-    }
-
-    /**
-     * Get literacy status
-     */
-    private function getLiteracyStatus($patients)
-    {
-        return [
-            'Literate' => $patients->where('literacy_status', 'Literate')->count(),
-            'Illiterate' => $patients->where('literacy_status', 'Illiterate')->count(),
-            'Not Sure' => $patients->where('literacy_status', 'Not sure')->count(),
-        ];
-    }
-
-    /**
-     * Get insurance status
-     */
-    private function getInsuranceStatus($patients)
-    {
-        $insured = $patients->where('health_insurance_status', 'Yes');
-        $satisfied = $insured->where('insurance_satisfaction', true);
-
-        return [
-            'Insured' => $insured->count(),
-            'Not Insured' => $patients->where('health_insurance_status', 'No')->count(),
-            'Not Enrolled' => $patients->where('health_insurance_status', 'Not Enrolled')->count(),
-            'Satisfied' => $satisfied->count(),
-            'Not Satisfied' => $insured->count() - $satisfied->count(),
-        ];
-    }
-
-    /**
-     * Get HIV status
-     */
-    private function getHIVStatus($patients)
-    {
-        // Count patients tested for HIV in any ANC visit
-        $tested = $patients->filter(function ($patient) {
-            for ($i = 1; $i <= 8; $i++) {
-                $hivTestField = "anc{$i}_hiv_test";
-                if ($patient->$hivTestField === 'Yes') {
-                    return true;
-                }
-            }
-            return false;
-        });
-
-        // Count positive results
-        $positive = $patients->filter(function ($patient) {
-            for ($i = 1; $i <= 8; $i++) {
-                $hivResultField = "anc{$i}_hiv_result";
-                if ($patient->$hivResultField === 'Positive') {
-                    return true;
-                }
-            }
-            return false;
-        });
-
-        return [
-            'Tested' => $tested->count(),
-            'Positive' => $positive->count(),
-            'Negative' => $tested->count() - $positive->count(),
-            'Not Tested' => $patients->count() - $tested->count(),
-        ];
-    }
-
-    /**
-     * Get family planning data
-     */
-    private function getFamilyPlanning($patients)
-    {
-        $fpUsers = $patients->where('fp_using', true);
-
-        return [
-            'Interested' => $patients->where('fp_interest', 'Yes')->count(),
-            'Using FP' => $fpUsers->count(),
-            'Male Condom' => $patients->where('fp_male_condom', true)->count(),
-            'Female Condom' => $patients->where('fp_female_condom', true)->count(),
-            'Pill' => $patients->where('fp_pill', true)->count(),
-            'Injectable' => $patients->where('fp_injectable', true)->count(),
-            'Implant' => $patients->where('fp_implant', true)->count(),
-            'IUD' => $patients->where('fp_iud', true)->count(),
-            'Other Methods' => $patients->where('fp_other', true)->count(),
-        ];
-    }
-
-    /**
-     * Get immunization data
-     */
-    private function getImmunization($patients)
-    {
-        return [
-            'BCG' => $patients->where('bcg_received', true)->count(),
-            'Hepatitis B' => $patients->where('hep0_received', true)->count(),
-            'OPV' => $patients->where('opv0_received', true)->count(),
-            'Penta1' => $patients->where('penta1_received', true)->count(),
-            'PCV1' => $patients->where('pcv1_received', true)->count(),
-            'Rota1' => $patients->where('rota1_received', true)->count(),
-            'IPV1' => $patients->where('ipv1_received', true)->count(),
-            'Penta2' => $patients->where('penta2_received', true)->count(),
-            'PCV2' => $patients->where('pcv2_received', true)->count(),
-            'Rota2' => $patients->where('rota2_received', true)->count(),
-            'Penta3' => $patients->where('penta3_received', true)->count(),
-            'PCV3' => $patients->where('pcv3_received', true)->count(),
-            'IPV2' => $patients->where('ipv2_received', true)->count(),
-            'Measles' => $patients->where('measles_received', true)->count(),
-            'Yellow Fever' => $patients->where('yellow_fever_received', true)->count(),
-            'Vitamin A' => $patients->where('vitamin_a_received', true)->count(),
-            'MCV2' => $patients->where('mcv2_received', true)->count(),
-        ];
-    }
-
-    /**
-     * Get service utilization
-     */
-    private function getServiceUtilization($patients)
+    private function getAdminServiceUtilization(Collection $patients): array
     {
         $ancServices = 0;
         for ($i = 1; $i <= 8; $i++) {
@@ -450,82 +702,150 @@ class AdminController extends Controller
     }
 
     /**
-     * Get ANC services breakdown
+     * Helper to format key-value arrays for Recharts (name, value).
+     * Excludes specified keys from the output.
+     * @param array $data
+     * @param array $excludeKeys
+     * @return array
      */
-    private function getAncServices($patients)
+    private function formatForRecharts(array $data, array $excludeKeys = []): array
     {
-        $services = [
-            'Urinalysis' => 0,
-            'Iron Folate' => 0,
-            'MMS' => 0,
-            'SP' => 0,
-            'SBA' => 0,
-        ];
-
-        for ($i = 1; $i <= 8; $i++) {
-            $services['Urinalysis'] += $patients->where("anc{$i}_urinalysis", true)->count();
-            $services['Iron Folate'] += $patients->where("anc{$i}_iron_folate", true)->count();
-            $services['MMS'] += $patients->where("anc{$i}_mms", true)->count();
-            $services['SP'] += $patients->where("anc{$i}_sp", true)->count();
-            $services['SBA'] += $patients->where("anc{$i}_sba", true)->count();
+        $formatted = [];
+        foreach ($data as $key => $value) {
+            if (!in_array($key, $excludeKeys)) {
+                $formatted[] = ['name' => $key, 'value' => $value];
+            }
         }
-
-        return $services;
+        return $formatted;
     }
 
     /**
-     * Get payment statistics
+     * Helper to format immunization coverage for Recharts.
+     * @param array $immunizationCoverageDetails
+     * @return array
      */
-    private function getPaymentStatistics($patients)
+    private function formatImmunizationCoverageForRecharts(array $immunizationCoverageDetails): array
     {
-        $paymentData = [
-            'ANC Payments' => 0,
-            'FP Payments' => 0,
-            'Total Revenue' => 0,
-        ];
+        $formatted = [];
+        $keyVaccines = ['bcg_received', 'penta1_received', 'measles_received', 'yellow_fever_received', 'mcv2_received']; // Focus on key ones for dashboard
 
-        // ANC Payments
-        for ($i = 1; $i <= 8; $i++) {
-            $paidField = "anc{$i}_paid";
-            $amountField = "anc{$i}_payment_amount";
+        foreach ($keyVaccines as $key) {
+            if (isset($immunizationCoverageDetails[$key])) {
+                $name = str_replace('_received', '', $key);
+                $name = ucwords(str_replace('_', ' ', $name));
+                $formatted[] = ['name' => $name, 'value' => $immunizationCoverageDetails[$key]['rate']];
+            }
+        }
+        return $formatted;
+    }
+
+    /**
+     * Helper to format PNC completion for Recharts.
+     * @param array $pncVisitCompletion
+     * @return array
+     */
+    private function formatPncCompletionForRecharts(array $pncVisitCompletion): array
+    {
+        $formatted = [];
+        if (isset($pncVisitCompletion['pnc1_received'])) $formatted[] = ['name' => 'PNC1', 'value' => $pncVisitCompletion['pnc1_received']];
+        if (isset($pncVisitCompletion['pnc2_received'])) $formatted[] = ['name' => 'PNC2', 'value' => $pncVisitCompletion['pnc2_received']];
+        if (isset($pncVisitCompletion['pnc3_received'])) $formatted[] = ['name' => 'PNC3', 'value' => $pncVisitCompletion['pnc3_received']];
+        return $formatted;
+    }
+
+    /**
+     * Calculate trends (Year-over-Year comparison).
+     * @param int $currentYear
+     * @return array
+     */
+    private function calculateTrends(int $currentYear): array
+    {
+        $previousYear = $currentYear - 1;
+        
+        $currentYearPatients = Patient::whereYear('date_of_registration', $currentYear)->get();
+        $previousYearPatients = Patient::whereYear('date_of_registration', $previousYear)->get();
+        
+        // Helper to get stats for a given patient collection
+        $getStatsForYear = function (Collection $patients) {
+            $total = $patients->count();
+            $delivered = $patients->whereNotNull('date_of_delivery')->count();
+            $facilityDeliveries = $patients->where('place_of_delivery', 'Health Facility')->count();
+            $liveBirths = $patients->where('delivery_outcome', 'Live birth')->count();
+            $anc8Completed = $this->getAncVisitsBreakdown($patients)['anc8'] ?? 0;
+            $fpUsers = $patients->where('fp_using', true)->count();
+            $insuredPatients = $patients->where('health_insurance_status', 'Yes')->count();
             
-            $paidPatients = $patients->where($paidField, true);
-            $paymentData['ANC Payments'] += $paidPatients->count();
-            $paymentData['Total Revenue'] += $paidPatients->sum($amountField);
-        }
+            $childrenWithDobCount = $patients->whereNotNull('child_dob')->count();
+            $bcgReceived = $patients->where('bcg_received', true)->count();
+            $bcgRate = $childrenWithDobCount > 0 ? round(($bcgReceived / $childrenWithDobCount) * 100, 1) : 0;
 
-        // FP Payments
-        $fpPaid = $patients->where('fp_paid', true);
-        $paymentData['FP Payments'] = $fpPaid->count();
-        $paymentData['Total Revenue'] += $fpPaid->sum('fp_payment_amount');
+            $hivTestOutcomes = $this->getHivTestOutcomes($patients);
+            $hivPositive = $hivTestOutcomes['Positive'] ?? 0;
 
-        return $paymentData;
+            return [
+                'total' => $total,
+                'delivered' => $delivered,
+                'facilityDeliveries' => $facilityDeliveries,
+                'liveBirths' => $liveBirths,
+                'anc8Completed' => $anc8Completed,
+                'fpUsers' => $fpUsers,
+                'insuredPatients' => $insuredPatients,
+                'bcgRate' => $bcgRate,
+                'hivPositive' => $hivPositive,
+            ];
+        };
+
+        $currentStats = $getStatsForYear($currentYearPatients);
+        $previousStats = $getStatsForYear($previousYearPatients);
+
+        // Helper for percentage change
+        $getChange = function ($current, $last) {
+            if ($last == 0) return $current > 0 ? 100 : 0; // If was 0, now more than 0 -> 100% increase
+            return round((($current - $last) / $last) * 100, 1);
+        };
+        
+        // Helper for absolute rate change
+        $getRateChange = function ($currentRate, $lastRate) {
+            return round($currentRate - $lastRate, 1);
+        };
+
+        $trends = [];
+        $trends['totalPatients'] = $getChange($currentStats['total'], $previousStats['total']);
+        $trends['liveBirths'] = $getChange($currentStats['liveBirths'], $previousStats['liveBirths']);
+        $trends['hivPositiveCases'] = $getChange($currentStats['hivPositive'], $previousStats['hivPositive']);
+
+        // Rates
+        $currentDeliveredPatients = $currentStats['delivered'];
+        $previousDeliveredPatients = $previousStats['delivered'];
+        
+        $currentFacilityDeliveryRate = $currentDeliveredPatients > 0 ? ($currentStats['facilityDeliveries'] / $currentDeliveredPatients) * 100 : 0;
+        $previousFacilityDeliveryRate = $previousDeliveredPatients > 0 ? ($previousStats['facilityDeliveries'] / $previousDeliveredPatients) * 100 : 0;
+        $trends['facilityDeliveryRate'] = $getRateChange($currentFacilityDeliveryRate, $previousFacilityDeliveryRate);
+
+        $currentAnc8Rate = $currentStats['total'] > 0 ? ($currentStats['anc8Completed'] / $currentStats['total']) * 100 : 0;
+        $previousAnc8Rate = $previousStats['total'] > 0 ? ($previousStats['anc8Completed'] / $previousStats['total']) * 100 : 0;
+        $trends['anc8CompletionRate'] = $getRateChange($currentAnc8Rate, $previousAnc8Rate);
+
+        $currentFpUptakeRate = $currentStats['total'] > 0 ? ($currentStats['fpUsers'] / $currentStats['total']) * 100 : 0;
+        $previousFpUptakeRate = $previousStats['total'] > 0 ? ($previousStats['fpUsers'] / $previousStats['total']) * 100 : 0;
+        $trends['fpUptakeRate'] = $getRateChange($currentFpUptakeRate, $previousFpUptakeRate);
+
+        $currentInsuranceEnrollmentRate = $currentStats['total'] > 0 ? ($currentStats['insuredPatients'] / $currentStats['total']) * 100 : 0;
+        $previousInsuranceEnrollmentRate = $previousStats['total'] > 0 ? ($previousStats['insuredPatients'] / $previousStats['total']) * 100 : 0;
+        $trends['insuranceEnrollmentRate'] = $getRateChange($currentInsuranceEnrollmentRate, $previousInsuranceEnrollmentRate);
+
+        // BCG trend needs children count from previous year, more complex, so keeping it null for now or basic change
+        $trends['bcgImmunization'] = $getRateChange($currentStats['bcgRate'], $previousStats['bcgRate']);
+
+        return $trends;
     }
 
     /**
-     * Generate empty chart data structure
+     * Calculate pregnancy month based on EDD.
+     * @param Patient $patient
+     * @return int|null
      */
-    private function generateEmptyChartData()
-    {
-        return [
-            'monthlyRegistrations' => [],
-            'deliveryOutcomes' => [],
-            'ancCompletion' => [],
-            'literacyStatus' => [],
-            'insuranceStatus' => [],
-            'hivStatus' => [],
-            'familyPlanning' => [],
-            'immunization' => [],
-            'serviceUtilization' => [],
-            'ancServices' => [],
-            'paymentStats' => [],
-        ];
-    }
-
-    /**
-     * Calculate pregnancy month based on EDD
-     */
-    private function calculatePregnancyMonth($patient)
+    private function calculatePregnancyMonth(Patient $patient): ?int
     {
         if (!$patient->edd || $patient->date_of_delivery) {
             return null;
@@ -534,19 +854,26 @@ class AdminController extends Controller
         $edd = Carbon::parse($patient->edd);
         $now = Carbon::now();
         
-        $totalPregnancyDays = 280; // 40 weeks
-        $daysPassed = $totalPregnancyDays - $now->diffInDays($edd, false);
-        
-        if ($daysPassed <= 0) return 9;
-        if ($daysPassed > 280) return 1;
-        
-        return (int) ceil($daysPassed / 30.44);
+        $diffInDays = $edd->diffInDays($now, false); // false for absolute difference
+
+        // If EDD is in the future, calculate months remaining, then subtract from 9
+        if ($diffInDays >= 0) {
+            $daysToEdd = $diffInDays;
+            $monthsToEdd = floor($daysToEdd / 30.44); // Average days in a month, floor to get full months
+            $month = 9 - $monthsToEdd;
+            return max(1, min(9, (int) $month)); // Ensure it's between 1 and 9
+        } else {
+            // If EDD is in the past, pregnancy is considered finished, or overdue
+            return 9; // Max month, indicating due or overdue
+        }
     }
 
     /**
-     * Check if patient is due this month
+     * Check if patient is due this month.
+     * @param Patient $patient
+     * @return bool
      */
-    private function isDueThisMonth($patient)
+    private function isDueThisMonth(Patient $patient): bool
     {
         if (!$patient->edd || $patient->date_of_delivery) {
             return false;
@@ -559,55 +886,457 @@ class AdminController extends Controller
     }
 
     /**
-     * Calculate trends (simplified - compare with previous year)
+     * Get ANC Detailed Data for ANC Tab
      */
-    private function calculateTrends()
+    private function getAncDetailedData(Collection $patients)
     {
-        $currentYear = now()->year;
-        $previousYear = $currentYear - 1;
+        $totalPatients = $patients->count();
         
-        $currentYearPatients = Patient::whereYear('date_of_registration', $currentYear)->get();
-        $previousYearPatients = Patient::whereYear('date_of_registration', $previousYear)->get();
-        
-        if ($previousYearPatients->count() === 0) {
-            return [
-                'totalPatients' => 100,
-                'deliveryRate' => 100,
-                'facilityDeliveryRate' => 100,
-                'liveBirths' => 100,
-                'anc4Rate' => 100,
+        // ANC Visit completion rates
+        $ancVisits = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $completed = $patients->filter(function ($patient) use ($i) {
+                return !empty($patient->{"anc_visit_{$i}_date"});
+            })->count();
+            
+            $ancVisits["anc{$i}"] = [
+                'completed' => $completed,
+                'rate' => $totalPatients > 0 ? round(($completed / $totalPatients) * 100, 1) : 0
             ];
         }
 
-        // Calculate current year stats
-        $currentTotal = $currentYearPatients->count();
-        $currentDelivered = $currentYearPatients->whereNotNull('date_of_delivery')->count();
-        $currentFacilityDeliveries = $currentYearPatients->where('place_of_delivery', 'Health Facility')->count();
-        $currentLiveBirths = $currentYearPatients->where('delivery_outcome', 'Live birth')->count();
-        $currentANC4 = $currentYearPatients->whereNotNull('anc_visit_4_date')->count();
+        // ANC Services utilization
+        $services = [
+            'urinalysis' => $patients->sum(function ($patient) {
+                $count = 0;
+                for ($i = 1; $i <= 8; $i++) {
+                    if ($patient->{"anc{$i}_urinalysis"}) $count++;
+                }
+                return $count;
+            }),
+            'iron_folate' => $patients->sum(function ($patient) {
+                $count = 0;
+                for ($i = 1; $i <= 8; $i++) {
+                    if ($patient->{"anc{$i}_iron_folate"}) $count++;
+                }
+                return $count;
+            }),
+            'mms' => $patients->sum(function ($patient) {
+                $count = 0;
+                for ($i = 1; $i <= 8; $i++) {
+                    if ($patient->{"anc{$i}_mms"}) $count++;
+                }
+                return $count;
+            }),
+            'sp' => $patients->sum(function ($patient) {
+                $count = 0;
+                for ($i = 1; $i <= 8; $i++) {
+                    if ($patient->{"anc{$i}_sp"}) $count++;
+                }
+                return $count;
+            }),
+            'sba' => $patients->sum(function ($patient) {
+                $count = 0;
+                for ($i = 1; $i <= 8; $i++) {
+                    if ($patient->{"anc{$i}_sba"}) $count++;
+                }
+                return $count;
+            })
+        ];
 
-        // Calculate previous year stats
-        $previousTotal = $previousYearPatients->count();
-        $previousDelivered = $previousYearPatients->whereNotNull('date_of_delivery')->count();
-        $previousFacilityDeliveries = $previousYearPatients->where('place_of_delivery', 'Health Facility')->count();
-        $previousLiveBirths = $previousYearPatients->where('delivery_outcome', 'Live birth')->count();
-        $previousANC4 = $previousYearPatients->whereNotNull('anc_visit_4_date')->count();
-
-        // Calculate trends
-        $totalTrend = $previousTotal > 0 ? round((($currentTotal - $previousTotal) / $previousTotal) * 100, 1) : 100;
-        $deliveryTrend = $previousDelivered > 0 ? round((($currentDelivered - $previousDelivered) / $previousDelivered) * 100, 1) : 100;
-        $facilityTrend = $previousFacilityDeliveries > 0 ? round((($currentFacilityDeliveries - $previousFacilityDeliveries) / $previousFacilityDeliveries) * 100, 1) : 100;
-        $liveBirthTrend = $previousLiveBirths > 0 ? round((($currentLiveBirths - $previousLiveBirths) / $previousLiveBirths) * 100, 1) : 100;
-        $anc4Trend = $previousANC4 > 0 ? round((($currentANC4 - $previousANC4) / $previousANC4) * 100, 1) : 100;
+        // ANC Payment analysis
+        $payments = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $paidCount = $patients->where("anc{$i}_paid", true)->count();
+            $totalAmount = $patients->sum("anc{$i}_payment_amount");
+            
+            $payments["anc{$i}"] = [
+                'paid_count' => $paidCount,
+                'total_amount' => $totalAmount,
+                'average_amount' => $paidCount > 0 ? round($totalAmount / $paidCount, 2) : 0
+            ];
+        }
 
         return [
-            'totalPatients' => $totalTrend,
-            'deliveryRate' => $deliveryTrend,
-            'facilityDeliveryRate' => $facilityTrend,
-            'liveBirths' => $liveBirthTrend,
-            'anc4Rate' => $anc4Trend,
+            'ancVisits' => $ancVisits,
+            'services' => $services,
+            'payments' => $payments,
+            'totalPatients' => $totalPatients,
+            'additionalAnc' => $patients->sum('additional_anc_count')
         ];
     }
+
+    /**
+     * Get Delivery Detailed Data for Delivery Tab
+     */
+    private function getDeliveryDetailedData(Collection $patients)
+    {
+        $delivered = $patients->whereNotNull('date_of_delivery');
+        $totalDelivered = $delivered->count();
+
+        $deliveryTypes = $delivered->countBy('type_of_delivery')->toArray();
+        $deliveryOutcomes = $delivered->countBy('delivery_outcome')->toArray();
+        $deliveryLocations = $delivered->countBy('place_of_delivery')->toArray();
+
+        // Delivery timing analysis
+        $deliveryTiming = [];
+        foreach ($delivered as $patient) {
+            if ($patient->edd && $patient->date_of_delivery) {
+                $edd = Carbon::parse($patient->edd);
+                $deliveryDate = Carbon::parse($patient->date_of_delivery);
+                $daysDifference = $edd->diffInDays($deliveryDate, false);
+                
+                if ($daysDifference < -14) $deliveryTiming['very_early'] = ($deliveryTiming['very_early'] ?? 0) + 1;
+                elseif ($daysDifference < 0) $deliveryTiming['early'] = ($deliveryTiming['early'] ?? 0) + 1;
+                elseif ($daysDifference == 0) $deliveryTiming['on_time'] = ($deliveryTiming['on_time'] ?? 0) + 1;
+                elseif ($daysDifference <= 14) $deliveryTiming['late'] = ($deliveryTiming['late'] ?? 0) + 1;
+                else $deliveryTiming['very_late'] = ($deliveryTiming['very_late'] ?? 0) + 1;
+            }
+        }
+
+        return [
+            'totalDelivered' => $totalDelivered,
+            'deliveryTypes' => $deliveryTypes,
+            'deliveryOutcomes' => $deliveryOutcomes,
+            'deliveryLocations' => $deliveryLocations,
+            'deliveryTiming' => $deliveryTiming,
+            'kitsReceived' => $delivered->where('delivery_kits_received', true)->count(),
+            'facilityDeliveries' => $delivered->where('place_of_delivery', 'Health Facility')->count(),
+            'homeDeliveries' => $delivered->where('place_of_delivery', 'Home')->count(),
+            'traditionalDeliveries' => $delivered->where('place_of_delivery', 'Traditional Attendant')->count(),
+        ];
+    }
+
+    /**
+     * Get Immunization Detailed Data for Immunization Tab
+     */
+    private function getImmunizationDetailedData(Collection $patients)
+    {
+        $childrenWithDob = $patients->whereNotNull('child_dob');
+        $totalChildren = $childrenWithDob->count();
+
+        $vaccines = [
+            'bcg', 'hep0', 'opv0', 'penta1', 'pcv1', 'opv1', 'rota1', 'ipv1',
+            'penta2', 'pcv2', 'rota2', 'opv2', 'penta3', 'pcv3', 'opv3', 'rota3',
+            'ipv2', 'measles', 'yellow_fever', 'vitamin_a', 'mcv2'
+        ];
+
+        $immunizationData = [];
+        foreach ($vaccines as $vaccine) {
+            $received = $patients->where("{$vaccine}_received", true)->count();
+            $immunizationData[$vaccine] = [
+                'received' => $received,
+                'rate' => $totalChildren > 0 ? round(($received / $totalChildren) * 100, 1) : 0
+            ];
+        }
+
+        // Immunization schedule compliance
+        $scheduleCompliance = $this->calculateImmunizationScheduleCompliance($patients);
+
+        return [
+            'totalChildren' => $totalChildren,
+            'vaccines' => $immunizationData,
+            'scheduleCompliance' => $scheduleCompliance,
+            'timelyVaccination' => $this->calculateTimelyVaccination($patients)
+        ];
+    }
+
+    /**
+     * Get Family Planning Detailed Data for FP Tab
+     */
+    private function getFamilyPlanningDetailedData(Collection $patients)
+    {
+        $fpUsers = $patients->where('fp_using', true);
+        $totalFpUsers = $fpUsers->count();
+        $totalPatients = $patients->count();
+
+        $methods = [
+            'male_condom' => [
+                'count' => $fpUsers->where('fp_male_condom', true)->count(),
+                'percentage' => $totalFpUsers > 0 ? round(($fpUsers->where('fp_male_condom', true)->count() / $totalFpUsers) * 100, 1) : 0
+            ],
+            'female_condom' => [
+                'count' => $fpUsers->where('fp_female_condom', true)->count(),
+                'percentage' => $totalFpUsers > 0 ? round(($fpUsers->where('fp_female_condom', true)->count() / $totalFpUsers) * 100, 1) : 0
+            ],
+            'pill' => [
+                'count' => $fpUsers->where('fp_pill', true)->count(),
+                'percentage' => $totalFpUsers > 0 ? round(($fpUsers->where('fp_pill', true)->count() / $totalFpUsers) * 100, 1) : 0
+            ],
+            'injectable' => [
+                'count' => $fpUsers->where('fp_injectable', true)->count(),
+                'percentage' => $totalFpUsers > 0 ? round(($fpUsers->where('fp_injectable', true)->count() / $totalFpUsers) * 100, 1) : 0
+            ],
+            'implant' => [
+                'count' => $fpUsers->where('fp_implant', true)->count(),
+                'percentage' => $totalFpUsers > 0 ? round(($fpUsers->where('fp_implant', true)->count() / $totalFpUsers) * 100, 1) : 0
+            ],
+            'iud' => [
+                'count' => $fpUsers->where('fp_iud', true)->count(),
+                'percentage' => $totalFpUsers > 0 ? round(($fpUsers->where('fp_iud', true)->count() / $totalFpUsers) * 100, 1) : 0
+            ],
+            'other' => [
+                'count' => $fpUsers->where('fp_other', true)->count(),
+                'percentage' => $totalFpUsers > 0 ? round(($fpUsers->where('fp_other', true)->count() / $totalFpUsers) * 100, 1) : 0
+            ]
+        ];
+
+        $fpInterest = $patients->countBy('fp_interest')->toArray();
+
+        // Method combinations
+        $methodCombinations = [];
+        foreach ($fpUsers as $patient) {
+            $methodsUsed = [];
+            if ($patient->fp_male_condom) $methodsUsed[] = 'Male Condom';
+            if ($patient->fp_female_condom) $methodsUsed[] = 'Female Condom';
+            if ($patient->fp_pill) $methodsUsed[] = 'Pill';
+            if ($patient->fp_injectable) $methodsUsed[] = 'Injectable';
+            if ($patient->fp_implant) $methodsUsed[] = 'Implant';
+            if ($patient->fp_iud) $methodsUsed[] = 'IUD';
+            if ($patient->fp_other) $methodsUsed[] = 'Other';
+
+            $combination = implode(' + ', $methodsUsed);
+            if (!isset($methodCombinations[$combination])) {
+                $methodCombinations[$combination] = 0;
+            }
+            $methodCombinations[$combination]++;
+        }
+
+        return [
+            'totalUsers' => $totalFpUsers,
+            'uptakeRate' => $totalPatients > 0 ? round(($totalFpUsers / $totalPatients) * 100, 1) : 0,
+            'methods' => $methods,
+            'fpInterest' => $fpInterest,
+            'methodCombinations' => $methodCombinations,
+            'otherMethods' => $patients->where('fp_other', true)->pluck('fp_other_specify')->filter()->values()
+        ];
+    }
+
+    /**
+     * Get HIV Detailed Data for HIV Tab
+     */
+    private function getHivDetailedData(Collection $patients)
+    {
+        $hivData = [
+            'tested' => 0,
+            'positive' => 0,
+            'negative' => 0,
+            'results_pending' => 0,
+            'not_tested' => 0,
+            'by_anc_visit' => []
+        ];
+
+        // Initialize ANC visit data
+        for ($i = 1; $i <= 8; $i++) {
+            $hivData['by_anc_visit']["anc{$i}"] = [
+                'tested' => 0,
+                'positive' => 0,
+                'negative' => 0,
+                'results_pending' => 0
+            ];
+        }
+
+        foreach ($patients as $patient) {
+            $tested = false;
+            $positive = false;
+            $resultsReceived = false;
+
+            for ($i = 1; $i <= 8; $i++) {
+                if ($patient->{"anc{$i}_hiv_test"} === 'Yes') {
+                    $tested = true;
+                    $hivData['by_anc_visit']["anc{$i}"]['tested']++;
+
+                    if ($patient->{"anc{$i}_hiv_result_received"}) {
+                        $resultsReceived = true;
+                        if ($patient->{"anc{$i}_hiv_result"} === 'Positive') {
+                            $positive = true;
+                            $hivData['by_anc_visit']["anc{$i}"]['positive']++;
+                        } else {
+                            $hivData['by_anc_visit']["anc{$i}"]['negative']++;
+                        }
+                    } else {
+                        $hivData['by_anc_visit']["anc{$i}"]['results_pending']++;
+                    }
+                }
+            }
+
+            if ($tested) {
+                $hivData['tested']++;
+                if ($resultsReceived) {
+                    if ($positive) {
+                        $hivData['positive']++;
+                    } else {
+                        $hivData['negative']++;
+                    }
+                } else {
+                    $hivData['results_pending']++;
+                }
+            } else {
+                $hivData['not_tested']++;
+            }
+        }
+
+        // Calculate rates
+        $totalPatients = $patients->count();
+        $hivData['testing_rate'] = $totalPatients > 0 ? round(($hivData['tested'] / $totalPatients) * 100, 1) : 0;
+        $hivData['positivity_rate'] = $hivData['tested'] > 0 ? round(($hivData['positive'] / $hivData['tested']) * 100, 1) : 0;
+
+        return $hivData;
+    }
+
+    /**
+     * Get Facility Performance Stats
+     */
+    private function getFacilityPerformanceStats(Collection $facilities)
+    {
+        $stats = [];
+
+        foreach ($facilities as $facility) {
+            $patients = $facility->patients;
+            $totalPatients = $patients->count();
+            $delivered = $patients->whereNotNull('date_of_delivery')->count();
+
+            // ANC metrics
+            $anc4Completed = $patients->filter(function ($p) {
+                return !empty($p->anc_visit_4_date);
+            })->count();
+
+            $anc8Completed = $patients->filter(function ($p) {
+                return !empty($p->anc_visit_8_date);
+            })->count();
+
+            // FP metrics
+            $fpUsers = $patients->where('fp_using', true)->count();
+
+            $stats[] = [
+                'id' => $facility->id,
+                'facility_name' => $facility->clinic_name,
+                'ward' => $facility->ward->name ?? 'N/A',
+                'lga' => $facility->ward->lga->name ?? 'N/A',
+                'total_patients' => $totalPatients,
+                'delivered' => $delivered,
+                'facility_delivery_rate' => $delivered > 0 ? 
+                    round(($patients->where('place_of_delivery', 'Health Facility')->count() / $delivered) * 100, 1) : 0,
+                'anc4_rate' => $totalPatients > 0 ? 
+                    round(($anc4Completed / $totalPatients) * 100, 1) : 0,
+                'anc8_rate' => $totalPatients > 0 ? 
+                    round(($anc8Completed / $totalPatients) * 100, 1) : 0,
+                'fp_uptake_rate' => $totalPatients > 0 ? 
+                    round(($fpUsers / $totalPatients) * 100, 1) : 0,
+                'performance_score' => $this->calculateFacilityPerformanceScore($patients, $totalPatients, $delivered)
+            ];
+        }
+
+        // Sort by performance score
+        usort($stats, function ($a, $b) {
+            return $b['performance_score'] <=> $a['performance_score'];
+        });
+
+        return $stats;
+    }
+
+    /**
+     * Calculate facility performance score
+     */
+    private function calculateFacilityPerformanceScore($patients, $totalPatients, $delivered)
+    {
+        if ($totalPatients === 0) return 0;
+
+        $score = 0;
+        
+        // ANC completion (30%)
+        $anc4Completed = $patients->filter(function ($p) {
+            return !empty($p->anc_visit_4_date);
+        })->count();
+        $score += ($anc4Completed / $totalPatients) * 30;
+
+        // Facility delivery rate (30%)
+        $facilityDeliveries = $patients->where('place_of_delivery', 'Health Facility')->count();
+        if ($delivered > 0) {
+            $score += ($facilityDeliveries / $delivered) * 30;
+        }
+
+        // FP uptake (20%)
+        $fpUsers = $patients->where('fp_using', true)->count();
+        $score += ($fpUsers / $totalPatients) * 20;
+
+        // Live birth rate (20%)
+        $liveBirths = $patients->where('delivery_outcome', 'Live birth')->count();
+        if ($delivered > 0) {
+            $score += ($liveBirths / $delivered) * 20;
+        }
+
+        return round($score, 1);
+    }
+
+    /**
+     * Calculate timely vaccination rates
+     */
+    private function calculateTimelyVaccination(Collection $patients)
+    {
+        $timelyCount = 0;
+        $totalWithVaccines = 0;
+
+        foreach ($patients as $patient) {
+            if ($patient->child_dob && $patient->bcg_received && $patient->bcg_date) {
+                $bcgDate = Carbon::parse($patient->bcg_date);
+                $dob = Carbon::parse($patient->child_dob);
+                $daysDifference = $dob->diffInDays($bcgDate);
+                
+                if ($daysDifference <= 7) { // BCG should be within 7 days of birth
+                    $timelyCount++;
+                }
+                $totalWithVaccines++;
+            }
+        }
+
+        return $totalWithVaccines > 0 ? round(($timelyCount / $totalWithVaccines) * 100, 1) : 0;
+    }
+
+    /**
+     * Calculate immunization schedule compliance
+     */
+    private function calculateImmunizationScheduleCompliance(Collection $patients)
+    {
+        $complianceData = [
+            'fully_compliant' => 0,
+            'partially_compliant' => 0,
+            'non_compliant' => 0
+        ];
+
+        foreach ($patients as $patient) {
+            if (!$patient->child_dob) continue;
+
+            $requiredVaccines = ['bcg', 'penta1', 'penta2', 'penta3', 'measles'];
+            $receivedCount = 0;
+
+            foreach ($requiredVaccines as $vaccine) {
+                if ($patient->{"{$vaccine}_received"}) {
+                    $receivedCount++;
+                }
+            }
+
+            if ($receivedCount === count($requiredVaccines)) {
+                $complianceData['fully_compliant']++;
+            } elseif ($receivedCount >= 3) {
+                $complianceData['partially_compliant']++;
+            } else {
+                $complianceData['non_compliant']++;
+            }
+        }
+
+        $totalChildren = $patients->whereNotNull('child_dob')->count();
+        if ($totalChildren > 0) {
+            $complianceData['fully_compliant_rate'] = round(($complianceData['fully_compliant'] / $totalChildren) * 100, 1);
+            $complianceData['partially_compliant_rate'] = round(($complianceData['partially_compliant'] / $totalChildren) * 100, 1);
+            $complianceData['non_compliant_rate'] = round(($complianceData['non_compliant'] / $totalChildren) * 100, 1);
+        }
+
+        return $complianceData;
+    }
+
+    // ... REST OF YOUR EXISTING METHODS (allPatients, showPatient, editPatient, updatePatient, destroyPatient, exportPatients, etc.)
+    // These remain exactly as you had them in your original controller
 
     /**
      * Display all patients across all facilities (Admin view)
@@ -658,7 +1387,7 @@ class AdminController extends Controller
                     $query->whereNotNull('anc_visit_4_date');
                     break;
                 case 'anc_incomplete':
-                    $query->whereNull('anc_visit_1_date');
+                    $query->whereNull('anc_visit_1_date'); // Basic check for incomplete ANC
                     break;
             }
         }
@@ -669,19 +1398,22 @@ class AdminController extends Controller
             
             switch ($pregnancyFilter) {
                 case '7_months':
-                    $twoMonthsFromNow = $now->copy()->addMonths(2);
-                    $oneMonthFromNow = $now->copy()->addMonth();
+                    // Patients whose EDD is 2 months from now, not yet delivered
+                    $eddStart = $now->copy()->addMonths(1)->startOfMonth();
+                    $eddEnd = $now->copy()->addMonths(2)->endOfMonth(); // EDD between 1 and 2 months from now
                     $query->whereNotNull('edd')
                           ->whereNull('date_of_delivery')
-                          ->where('edd', '>=', $oneMonthFromNow)
-                          ->where('edd', '<=', $twoMonthsFromNow);
+                          ->where('edd', '>=', $eddStart)
+                          ->where('edd', '<=', $eddEnd);
                     break;
                 case '8_months':
-                    $oneMonthFromNow = $now->copy()->addMonth();
+                    // Patients whose EDD is 1 month from now, not yet delivered
+                    $eddStart = $now->copy()->startOfMonth();
+                    $eddEnd = $now->copy()->addMonths(1)->endOfMonth(); // EDD within next month
                     $query->whereNotNull('edd')
                           ->whereNull('date_of_delivery')
-                          ->where('edd', '<=', $oneMonthFromNow)
-                          ->where('edd', '>=', $now);
+                          ->where('edd', '>=', $eddStart)
+                          ->where('edd', '<=', $eddEnd);
                     break;
                 case 'due_this_month':
                     $startOfMonth = $now->copy()->startOfMonth();
@@ -772,119 +1504,8 @@ class AdminController extends Controller
     {
         $patient = Patient::findOrFail($id);
         
-        $data = $request->validate([
-            // Personal Information
-            'woman_name' => 'required|string|max:255',
-            'age' => 'required|integer|between:15,50',
-            'literacy_status' => 'required|in:Literate,Illiterate,Not sure',
-            'phone_number' => 'nullable|string|max:20',
-            'husband_name' => 'nullable|string|max:255',
-            'husband_phone' => 'nullable|string|max:20',
-            'community' => 'required|string|max:255',
-            'address' => 'required|string|max:255',
-            'lga_id' => 'required|exists:lgas,id',
-            'ward_id' => 'required|exists:wards,id',
-            'health_facility_id' => 'required|exists:phcs,id',
-
-            // Medical Information
-            'gravida' => 'nullable|integer|min:0',
-            'parity' => 'nullable|integer|min:0',
-            'date_of_registration' => 'required|date',
-            'edd' => 'required|date|after_or_equal:date_of_registration',
-
-            // ANC Visits 1-8
-            'additional_anc_count' => 'nullable|integer|min:0',
-
-            // Delivery Details
-            'place_of_delivery' => 'nullable|in:Home,Health Facility,Traditional Attendant',
-            'delivery_kits_received' => 'boolean',
-            'type_of_delivery' => 'nullable|in:Normal (Vaginal),Cesarean Section,Assisted,Breech',
-            'delivery_outcome' => 'nullable|in:Live birth,Stillbirth,Miscarriage',
-            'date_of_delivery' => 'nullable|date',
-
-            // Postnatal Checkup
-            'pnc_visit_1' => 'nullable|date',
-            'pnc_visit_2' => 'nullable|date',
-            'pnc_visit_3' => 'nullable|date',
-
-            // Insurance
-            'health_insurance_status' => 'nullable|in:Yes,No,Not Enrolled',
-            'insurance_type' => 'nullable|in:Kachima,NHIS,Others',
-            'insurance_other_specify' => 'nullable|string|max:255',
-            'insurance_satisfaction' => 'boolean',
-
-            // Family Planning
-            'fp_interest' => 'nullable|in:Yes,No',
-            'fp_using' => 'boolean',
-            'fp_male_condom' => 'boolean',
-            'fp_female_condom' => 'boolean',
-            'fp_pill' => 'boolean',
-            'fp_injectable' => 'boolean',
-            'fp_implant' => 'boolean',
-            'fp_iud' => 'boolean',
-            'fp_other' => 'boolean',
-            'fp_other_specify' => 'nullable|string|max:255',
-            'fp_paid' => 'boolean',
-            'fp_payment_amount' => 'nullable|numeric|min:0',
-
-            // Child Immunization
-            'child_name' => 'nullable|string|max:255',
-            'child_dob' => 'nullable|date',
-            'child_gender' => 'nullable|in:Male,Female',
-
-            // Notes
-            'remark' => 'nullable|string',
-            'comments' => 'nullable|string',
-        ]);
-
-        // Add ANC visit validations for visits 1-8
-        for ($i = 1; $i <= 8; $i++) {
-            $request->validate([
-                "anc_visit_{$i}_date" => 'nullable|date',
-                "tracked_before_anc{$i}" => 'boolean',
-                "anc{$i}_paid" => 'boolean',
-                "anc{$i}_payment_amount" => 'nullable|numeric|min:0',
-                "anc{$i}_urinalysis" => 'boolean',
-                "anc{$i}_iron_folate" => 'boolean',
-                "anc{$i}_mms" => 'boolean',
-                "anc{$i}_sp" => 'boolean',
-                "anc{$i}_sba" => 'boolean',
-                "anc{$i}_hiv_test" => 'nullable|in:Yes,No',
-                "anc{$i}_hiv_result_received" => 'boolean',
-                "anc{$i}_hiv_result" => 'nullable|in:Positive,Negative',
-            ]);
-
-            // Add these fields to data
-            $data["anc_visit_{$i}_date"] = $request->input("anc_visit_{$i}_date");
-            $data["tracked_before_anc{$i}"] = (bool)$request->input("tracked_before_anc{$i}", false);
-            $data["anc{$i}_paid"] = (bool)$request->input("anc{$i}_paid", false);
-            $data["anc{$i}_payment_amount"] = $request->input("anc{$i}_payment_amount");
-            $data["anc{$i}_urinalysis"] = (bool)$request->input("anc{$i}_urinalysis", false);
-            $data["anc{$i}_iron_folate"] = (bool)$request->input("anc{$i}_iron_folate", false);
-            $data["anc{$i}_mms"] = (bool)$request->input("anc{$i}_mms", false);
-            $data["anc{$i}_sp"] = (bool)$request->input("anc{$i}_sp", false);
-            $data["anc{$i}_sba"] = (bool)$request->input("anc{$i}_sba", false);
-            $data["anc{$i}_hiv_test"] = $request->input("anc{$i}_hiv_test");
-            $data["anc{$i}_hiv_result_received"] = (bool)$request->input("anc{$i}_hiv_result_received", false);
-            $data["anc{$i}_hiv_result"] = $request->input("anc{$i}_hiv_result");
-        }
-
-        // Add vaccine validations
-        $vaccines = [
-            'bcg', 'hep0', 'opv0', 'penta1', 'pcv1', 'opv1', 'rota1', 'ipv1',
-            'penta2', 'pcv2', 'rota2', 'opv2', 'penta3', 'pcv3', 'opv3', 'rota3',
-            'ipv2', 'measles', 'yellow_fever', 'vitamin_a', 'mcv2'
-        ];
-
-        foreach ($vaccines as $vaccine) {
-            $request->validate([
-                "{$vaccine}_received" => 'boolean',
-                "{$vaccine}_date" => 'nullable|date',
-            ]);
-
-            $data["{$vaccine}_received"] = (bool)$request->input("{$vaccine}_received", false);
-            $data["{$vaccine}_date"] = $request->input("{$vaccine}_date");
-        }
+        $data = $this->validatePatientData($request); // Use unified validation
+        $data = $this->convertBooleanFields($data); // Use unified boolean conversion
 
         $patient->update($data);
 
@@ -946,110 +1567,139 @@ class AdminController extends Controller
             // Add BOM for Excel compatibility
             fwrite($file, "\xEF\xBB\xBF");
             
-            // Add CSV headers with comprehensive fields
-            fputcsv($file, [
-                'Unique ID', 'Woman Name', 'Age', 'Literacy Status', 'Phone Number',
+            // Generate ANC headers
+            $ancHeaders = [];
+            for ($i = 1; $i <= 8; $i++) {
+                $ancHeaders = array_merge($ancHeaders, [
+                    "ANC{$i} Date", "Tracked Before ANC{$i}", "ANC{$i} Paid", "ANC{$i} Amount",
+                    "ANC{$i} Urinalysis", "ANC{$i} Iron Folate", "ANC{$i} MMS", "ANC{$i} SP", "ANC{$i} SBA",
+                    "ANC{$i} HIV Test", "ANC{$i} HIV Result Received", "ANC{$i} HIV Result"
+                ]);
+            }
+            $ancHeaders[] = 'Additional ANC Count';
+
+            // Generate vaccine headers
+            $vaccineHeaders = [];
+            $vaccines = [
+                'bcg', 'hep0', 'opv0', 'penta1', 'pcv1', 'opv1', 'rota1', 'ipv1',
+                'penta2', 'pcv2', 'rota2', 'opv2', 'penta3', 'pcv3', 'opv3', 'rota3',
+                'ipv2', 'measles', 'yellow_fever', 'vitamin_a', 'mcv2'
+            ];
+            foreach ($vaccines as $vaccine) {
+                $name = ucwords(str_replace('_', ' ', $vaccine));
+                $vaccineHeaders[] = "{$name} Received";
+                $vaccineHeaders[] = "{$name} Date";
+            }
+
+            // Generate CSV headers dynamically from a list of all fields
+            $headerFields = array_merge(
+                ['Unique ID', 'Woman Name', 'Age', 'Literacy Status', 'Phone Number',
                 'Husband Name', 'Husband Phone', 'Community', 'Address',
                 'LGA', 'Ward', 'Health Facility', 'Gravida', 'Parity',
-                'Registration Date', 'EDD', 
-                'ANC1 Date', 'ANC1 Paid', 'ANC1 Amount', 'ANC1 HIV Test', 'ANC1 HIV Result',
-                'ANC2 Date', 'ANC2 Paid', 'ANC2 Amount', 'ANC2 HIV Test', 'ANC2 HIV Result',
-                'ANC3 Date', 'ANC3 Paid', 'ANC3 Amount', 'ANC3 HIV Test', 'ANC3 HIV Result',
-                'ANC4 Date', 'ANC4 Paid', 'ANC4 Amount', 'ANC4 HIV Test', 'ANC4 HIV Result',
-                'ANC5 Date', 'ANC6 Date', 'ANC7 Date', 'ANC8 Date',
-                'Place of Delivery', 'Delivery Outcome', 'Date of Delivery',
-                'Delivery Kits Received', 'PNC1 Date', 'PNC2 Date',
-                'Health Insurance', 'Insurance Type', 'Insurance Satisfied',
-                'FP Interested', 'FP Using', 'FP Method', 'FP Paid', 'FP Amount',
-                'Child Name', 'Child DOB', 'Child Gender', 'BCG Received',
-                'Remark', 'Comments'
-            ]);
+                'Registration Date', 'EDD', 'FP Interest'],
+                
+                $ancHeaders,
+
+                // Delivery
+                ['Place of Delivery', 'Delivery Kits Received', 'Type of Delivery', 'Delivery Outcome', 'Date of Delivery'],
+
+                // Postnatal
+                ['PNC1 Date', 'PNC2 Date', 'PNC3 Date'],
+
+                // Insurance
+                ['Health Insurance Status', 'Insurance Type', 'Insurance Other Specify', 'Insurance Satisfaction'],
+
+                // Family Planning
+                ['FP Using', 'FP Male Condom', 'FP Female Condom', 'FP Pill', 'FP Injectable',
+                'FP Implant', 'FP IUD', 'FP Other', 'FP Other Specify'],
+
+                // Child Immunization
+                ['Child Name', 'Child DOB', 'Child Gender'],
+                $vaccineHeaders,
+
+                // Notes
+                ['Remark', 'Comments']
+            );
+
+            fputcsv($file, $headerFields);
 
             // Add data rows
             foreach ($patients as $patient) {
-                // Determine FP method
-                $fpMethod = '';
-                if ($patient->fp_male_condom) $fpMethod .= 'Male Condom, ';
-                if ($patient->fp_female_condom) $fpMethod .= 'Female Condom, ';
-                if ($patient->fp_pill) $fpMethod .= 'Pill, ';
-                if ($patient->fp_injectable) $fpMethod .= 'Injectable, ';
-                if ($patient->fp_implant) $fpMethod .= 'Implant, ';
-                if ($patient->fp_iud) $fpMethod .= 'IUD, ';
-                if ($patient->fp_other) $fpMethod .= 'Other: ' . ($patient->fp_other_specify ?? '');
-                $fpMethod = rtrim($fpMethod, ', ');
+                $rowData = [
+                    $patient->unique_id, $patient->woman_name, $patient->age, $patient->literacy_status, $patient->phone_number,
+                    $patient->husband_name ?? '', $patient->husband_phone ?? '', $patient->community, $patient->address,
+                    $patient->lga->name ?? 'N/A', $patient->ward->name ?? 'N/A', $patient->healthFacility->clinic_name ?? 'N/A',
+                    $patient->gravida ?? '', $patient->parity ?? '',
+                    $patient->date_of_registration, $patient->edd,
+                ];
 
-                fputcsv($file, [
-                    $patient->unique_id,
-                    $patient->woman_name,
-                    $patient->age,
-                    $patient->literacy_status,
-                    $patient->phone_number,
-                    $patient->husband_name ?? '',
-                    $patient->husband_phone ?? '',
-                    $patient->community,
-                    $patient->address,
-                    $patient->lga->name ?? 'N/A',
-                    $patient->ward->name ?? 'N/A',
-                    $patient->healthFacility->clinic_name ?? 'N/A',
-                    $patient->gravida ?? '',
-                    $patient->parity ?? '',
-                    $patient->date_of_registration,
-                    $patient->edd,
-                    // ANC1
-                    $patient->anc_visit_1_date ?? '',
-                    $patient->anc1_paid ? 'Yes' : 'No',
-                    $patient->anc1_payment_amount ?? '',
-                    $patient->anc1_hiv_test ?? '',
-                    $patient->anc1_hiv_result ?? '',
-                    // ANC2
-                    $patient->anc_visit_2_date ?? '',
-                    $patient->anc2_paid ? 'Yes' : 'No',
-                    $patient->anc2_payment_amount ?? '',
-                    $patient->anc2_hiv_test ?? '',
-                    $patient->anc2_hiv_result ?? '',
-                    // ANC3
-                    $patient->anc_visit_3_date ?? '',
-                    $patient->anc3_paid ? 'Yes' : 'No',
-                    $patient->anc3_payment_amount ?? '',
-                    $patient->anc3_hiv_test ?? '',
-                    $patient->anc3_hiv_result ?? '',
-                    // ANC4
-                    $patient->anc_visit_4_date ?? '',
-                    $patient->anc4_paid ? 'Yes' : 'No',
-                    $patient->anc4_payment_amount ?? '',
-                    $patient->anc4_hiv_test ?? '',
-                    $patient->anc4_hiv_result ?? '',
-                    // Additional ANC
-                    $patient->anc_visit_5_date ?? '',
-                    $patient->anc_visit_6_date ?? '',
-                    $patient->anc_visit_7_date ?? '',
-                    $patient->anc_visit_8_date ?? '',
-                    // Delivery
-                    $patient->place_of_delivery ?? '',
-                    $patient->delivery_outcome ?? '',
-                    $patient->date_of_delivery ?? '',
-                    $patient->delivery_kits_received ? 'Yes' : 'No',
-                    $patient->pnc_visit_1 ?? '',
-                    $patient->pnc_visit_2 ?? '',
-                    // Insurance
-                    $patient->health_insurance_status,
-                    $patient->insurance_type ?? '',
-                    $patient->insurance_satisfaction ? 'Yes' : 'No',
-                    // Family Planning
-                    $patient->fp_interest ?? '',
-                    $patient->fp_using ? 'Yes' : 'No',
-                    $fpMethod,
-                    $patient->fp_paid ? 'Yes' : 'No',
-                    $patient->fp_payment_amount ?? '',
-                    // Child
-                    $patient->child_name ?? '',
-                    $patient->child_dob ?? '',
-                    $patient->child_gender ?? '',
-                    $patient->bcg_received ? 'Yes' : 'No',
-                    // Notes
-                    $patient->remark ?? '',
-                    $patient->comments ?? ''
+                // ANC Visits (1-8) data
+                for ($i = 1; $i <= 8; $i++) {
+                    $rowData = array_merge($rowData, [
+                        $patient->{"anc_visit_{$i}_date"} ?? '',
+                        $patient->{"tracked_before_anc{$i}"} ? 'Yes' : 'No',
+                        $patient->{"anc{$i}_paid"} ? 'Yes' : 'No',
+                        $patient->{"anc{$i}_payment_amount"} ?? '',
+                        $patient->{"anc{$i}_urinalysis"} ? 'Yes' : 'No',
+                        $patient->{"anc{$i}_iron_folate"} ? 'Yes' : 'No',
+                        $patient->{"anc{$i}_mms"} ? 'Yes' : 'No',
+                        $patient->{"anc{$i}_sp"} ? 'Yes' : 'No',
+                        $patient->{"anc{$i}_sba"} ? 'Yes' : 'No',
+                        $patient->{"anc{$i}_hiv_test"} ?? '',
+                        $patient->{"anc{$i}_hiv_result_received"} ? 'Yes' : 'No',
+                        $patient->{"anc{$i}_hiv_result"} ?? '',
+                    ]);
+                }
+                $rowData[] = $patient->additional_anc_count ?? '';
+
+                // Delivery data
+                $rowData = array_merge($rowData, [
+                    $patient->place_of_delivery ?? '', $patient->delivery_kits_received ? 'Yes' : 'No',
+                    $patient->type_of_delivery ?? '', $patient->delivery_outcome ?? '', $patient->date_of_delivery ?? '',
                 ]);
+
+                // PNC data
+                $rowData = array_merge($rowData, [
+                    $patient->pnc_visit_1 ?? '', $patient->pnc_visit_2 ?? '', $patient->pnc_visit_3 ?? '',
+                ]);
+
+                // Insurance data
+                $rowData = array_merge($rowData, [
+                    $patient->health_insurance_status, $patient->insurance_type ?? '',
+                    $patient->insurance_other_specify ?? '', $patient->insurance_satisfaction ? 'Yes' : 'No',
+                ]);
+
+                // Family Planning data
+                $fpData = [
+                    $patient->fp_using ? 'Yes' : 'No',
+                    $patient->fp_male_condom ? 'Yes' : 'No',
+                    $patient->fp_female_condom ? 'Yes' : 'No',
+                    $patient->fp_pill ? 'Yes' : 'No',
+                    $patient->fp_injectable ? 'Yes' : 'No',
+                    $patient->fp_implant ? 'Yes' : 'No',
+                    $patient->fp_iud ? 'Yes' : 'No',
+                    $patient->fp_other ? 'Yes' : 'No',
+                    $patient->fp_other_specify ?? '',
+                ];
+                $rowData = array_merge($rowData, $fpData);
+
+                // Child Immunization data
+                $rowData = array_merge($rowData, [
+                    $patient->child_name ?? '', $patient->child_dob ?? '', $patient->child_gender ?? '',
+                ]);
+                
+                // Vaccine data
+                foreach ($vaccines as $vaccine) {
+                    $rowData[] = $patient->{"{$vaccine}_received"} ? 'Yes' : 'No';
+                    $rowData[] = $patient->{"{$vaccine}_date"} ?? '';
+                }
+
+                // Notes
+                $rowData = array_merge($rowData, [
+                    $patient->remark ?? '', $patient->comments ?? ''
+                ]);
+                
+                fputcsv($file, $rowData);
             }
 
             fclose($file);
@@ -1059,32 +1709,90 @@ class AdminController extends Controller
     }
 
     /**
-     * Display statistics page (simplified version)
+     * Unified validation logic for patient data (Admin view, similar to PHC Staff)
+     * @param Request $request
+     * @return array
      */
-    public function statistics()
+    private function validatePatientData(Request $request): array
     {
-        $currentYear = now()->year;
-        
-        // Get basic statistics for the state
-        $totalPatients = Patient::whereYear('date_of_registration', $currentYear)->count();
-        $totalDelivered = Patient::whereYear('date_of_registration', $currentYear)
-                                ->whereNotNull('date_of_delivery')
-                                ->count();
-        $anc4Completed = Patient::whereYear('date_of_registration', $currentYear)
-                               ->whereNotNull('anc_visit_4_date')
-                               ->count();
-
-        $statistics = [
-            'totalRegistered' => $totalPatients,
-            'totalDelivered' => $totalDelivered,
-            'anc4Completed' => $anc4Completed,
-            'anc4Rate' => $totalPatients > 0 ? round(($anc4Completed / $totalPatients) * 100, 1) : 0,
-            'deliveryRate' => $totalPatients > 0 ? round(($totalDelivered / $totalPatients) * 100, 1) : 0,
+        $rules = [
+            'woman_name' => 'required|string|max:255', 'age' => 'required|integer|between:15,50',
+            'literacy_status' => 'required|in:Literate,Illiterate,Not sure', 'phone_number' => 'nullable|string|max:20',
+            'husband_name' => 'nullable|string|max:255', 'husband_phone' => 'nullable|string|max:20',
+            'community' => 'required|string|max:255', 'address' => 'required|string',
+            'lga_id' => 'required|exists:lgas,id', 'ward_id' => 'required|exists:wards,id',
+            'health_facility_id' => 'required|exists:phcs,id',
+            'gravida' => 'nullable|integer|min:0', 'parity' => 'nullable|integer|min:0',
+            'date_of_registration' => 'required|date', 'edd' => 'required|date|after_or_equal:date_of_registration',
+            'fp_interest' => 'nullable|in:Yes,No', 'additional_anc_count' => 'nullable|integer|min:0',
+            'place_of_delivery' => 'nullable|in:Home,Health Facility,Traditional Attendant', 'delivery_kits_received' => 'boolean',
+            'type_of_delivery' => 'nullable|in:Normal (Vaginal),Cesarean Section,Assisted,Breech', 'delivery_outcome' => 'nullable|in:Live birth,Stillbirth,Miscarriage',
+            'date_of_delivery' => 'nullable|date', 'pnc_visit_1' => 'nullable|date', 'pnc_visit_2' => 'nullable|date',
+            'pnc_visit_3' => 'nullable|date', 'health_insurance_status' => 'nullable|in:Yes,No,Not Enrolled',
+            'insurance_type' => 'nullable|in:Kachima,NHIS,Others', 'insurance_other_specify' => 'nullable|string|max:255',
+            'insurance_satisfaction' => 'boolean', 'fp_using' => 'boolean', 'fp_male_condom' => 'boolean',
+            'fp_female_condom' => 'boolean', 'fp_pill' => 'boolean', 'fp_injectable' => 'boolean',
+            'fp_implant' => 'boolean', 'fp_iud' => 'boolean', 'fp_other' => 'boolean',
+            'fp_other_specify' => 'nullable|string|max:255', 'child_name' => 'nullable|string|max:255',
+            'child_dob' => 'nullable|date', 'child_gender' => 'nullable|in:Male,Female',
+            'remark' => 'nullable|string', 'comments' => 'nullable|string',
         ];
 
-        return Inertia::render('Admin/Statistics', [
-            'statistics' => $statistics,
-            'currentYear' => $currentYear,
-        ]);
+        for ($i = 1; $i <= 8; $i++) {
+            $rules["anc_visit_{$i}_date"] = 'nullable|date';
+            $rules["tracked_before_anc{$i}"] = 'boolean'; $rules["anc{$i}_paid"] = 'boolean';
+            $rules["anc{$i}_payment_amount"] = 'nullable|numeric|min:0'; $rules["anc{$i}_urinalysis"] = 'boolean';
+            $rules["anc{$i}_iron_folate"] = 'boolean'; $rules["anc{$i}_mms"] = 'boolean';
+            $rules["anc{$i}_sp"] = 'boolean'; $rules["anc{$i}_sba"] = 'boolean';
+            $rules["anc{$i}_hiv_test"] = 'nullable|in:Yes,No'; $rules["anc{$i}_hiv_result_received"] = 'boolean';
+            $rules["anc{$i}_hiv_result"] = 'nullable|in:Positive,Negative';
+        }
+
+        $vaccines = [
+            'bcg', 'hep0', 'opv0', 'penta1', 'pcv1', 'opv1', 'rota1', 'ipv1',
+            'penta2', 'pcv2', 'rota2', 'opv2', 'penta3', 'pcv3', 'opv3', 'rota3',
+            'ipv2', 'measles', 'yellow_fever', 'vitamin_a', 'mcv2'
+        ];
+        foreach ($vaccines as $vaccine) {
+            $rules["{$vaccine}_received"] = 'boolean'; $rules["{$vaccine}_date"] = 'nullable|date';
+        }
+
+        return $request->validate($rules);
+    }
+
+    /**
+     * Convert boolean fields (Admin view, similar to PHC Staff)
+     * @param array $data
+     * @return array
+     */
+    private function convertBooleanFields(array $data): array
+    {
+        $booleanFields = [
+            'delivery_kits_received', 'insurance_satisfaction',
+            'fp_using', 'fp_male_condom', 'fp_female_condom', 'fp_pill',
+            'fp_injectable', 'fp_implant', 'fp_iud', 'fp_other',
+        ];
+
+        for ($i = 1; $i <= 8; $i++) {
+            array_push($booleanFields, "tracked_before_anc{$i}", "anc{$i}_paid", "anc{$i}_urinalysis",
+                       "anc{$i}_iron_folate", "anc{$i}_mms", "anc{$i}_sp", "anc{$i}_sba",
+                       "anc{$i}_hiv_result_received");
+        }
+
+        $vaccines = [
+            'bcg', 'hep0', 'opv0', 'penta1', 'pcv1', 'opv1', 'rota1', 'ipv1',
+            'penta2', 'pcv2', 'rota2', 'opv2', 'penta3', 'pcv3', 'opv3', 'rota3',
+            'ipv2', 'measles', 'yellow_fever', 'vitamin_a', 'mcv2'
+        ];
+        foreach ($vaccines as $vaccine) {
+            $booleanFields[] = "{$vaccine}_received";
+        }
+
+        foreach ($booleanFields as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = (bool)($data[$field] ?? false);
+            }
+        }
+        return $data;
     }
 }

@@ -10,7 +10,6 @@ import {
   MapPin
 } from "lucide-react";
 
-// Fixed Pagination component with null href protection
 const Pagination = ({ links }) => {
     return (
         <div className="flex justify-center mt-6">

@@ -109,78 +109,99 @@ class PhcController extends Controller
         return $this->publicShow($phc);
     }
 
-    /**
-     * Store a newly created PHC in storage (for admin).
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            // Facility Info
-            'clinic_name' => 'required|string|max:255|unique:phcs,clinic_name',
-            'lga_id' => 'required|exists:lgas,id',
-            'ward_id' => [
-                'required',
-                'exists:wards,id',
-                Rule::exists('wards', 'id')->where(function ($query) use ($request) {
-                    return $query->where('lga_id', $request->lga_id);
-                }),
-            ],
-            'address' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'contact_phone' => 'required|string|max:15',
-            'incharge_name' => 'required|string|max:255',
+   /**
+ * Store a newly created PHC in storage (for admin).
+ */
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        // Facility Info
+        'clinic_name' => 'required|string|max:255|unique:phcs,clinic_name',
+        'lga_id' => 'required|exists:lgas,id',
+        'ward_id' => [
+            'required',
+            'exists:wards,id',
+            Rule::exists('wards', 'id')->where(function ($query) use ($request) {
+                return $query->where('lga_id', $request->lga_id);
+            }),
+        ],
+        'address' => 'required|string|max:255',
+        'email' => 'nullable|email|max:255',
+        'contact_phone' => 'required|string|max:15',
+        'incharge_name' => 'required|string|max:255',
 
-            // ANC Working Days (array validation)
-            'anc_working_days' => 'required|array|min:1',
-            'anc_working_days.*.day' => 'required|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
-            'anc_working_days.*.time_from' => 'required|date_format:H:i',
-            'anc_working_days.*.time_to' => 'required|date_format:H:i|after:anc_working_days.*.time_from',
+        // ANC Working Days (array validation)
+        'anc_working_days' => 'required|array|min:1',
+        'anc_working_days.*.day' => 'required|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
+        'anc_working_days.*.time_from' => 'required|date_format:H:i',
+        'anc_working_days.*.time_to' => 'required|date_format:H:i|after:anc_working_days.*.time_from',
 
-            // Images Validation
-            'images' => 'required|array|min:1', 
-            'images.*' => 'image|max:2048', 
+        // Images Validation
+        'images' => 'required|array|min:1', 
+        'images.*' => 'image|max:2048', 
 
-            // Auth Info for new User (In-Charge)
-            'user_name' => 'required|string|max:255|unique:users,name',
-            'password' => 'required|string|min:8',
+        // Auth Info for new User (In-Charge)
+        'user_name' => 'required|string|max:255|unique:users,name',
+        'password' => 'required|string|min:8',
+    ]);
+    
+    // File Handling
+    $imagePaths = [];
+    if ($request->hasFile('images')) {
+        foreach ($request->file('images') as $image) {
+            // Store the file in 'public/phc_images' disk 
+            $path = $image->store('phc_images', 'public'); 
+            $imagePaths[] = Storage::url($path); 
+        }
+    }
+
+    try {
+        // Database Transaction
+        DB::beginTransaction();
+
+        // 1. Create the PHC facility
+        $phc = Phc::create([
+            'clinic_name' => $validated['clinic_name'],
+            'lga_id' => $validated['lga_id'],
+            'ward_id' => $validated['ward_id'],
+            'address' => $validated['address'],
+            'email' => $validated['email'],
+            'contact_phone' => $validated['contact_phone'],
+            'incharge_name' => $validated['incharge_name'],
+            // Eloquent casting handles the array to JSON conversion
+            'anc_schedule' => $validated['anc_working_days'], 
+            'images' => $imagePaths, 
         ]);
+
+        // 2. Create the In-Charge User account
+        $user = User::create([
+            'name' => $validated['user_name'],
+            'email' => $validated['email'] ?? $validated['user_name'] . '@phc.com', // Ensure email is set
+            'password' => Hash::make($validated['password']),
+            'role' => 'phc_staff',
+            'phc_id' => $phc->id, 
+        ]);
+
+        // Log for debugging
+        \Log::info('PHC created with ID: ' . $phc->id);
+        \Log::info('User created with PHC ID: ' . $user->phc_id);
+
+        DB::commit();
+
+        return redirect()->route('admin.manage-facilities')->with('success', 'PHC and In-Charge account created successfully.');
         
-        // File Handling
-        $imagePaths = [];
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                // Store the file in 'public/phc_images' disk 
-                $path = $image->store('phc_images', 'public'); 
-                $imagePaths[] = Storage::url($path); 
-            }
+    } catch (\Exception $e) {
+        DB::rollBack();
+        
+        \Log::error('Error creating PHC and user: ' . $e->getMessage());
+        
+        // Delete any uploaded images if transaction fails
+        foreach ($imagePaths as $path) {
+            $fullPath = str_replace('/storage/', 'public/', $path);
+            Storage::delete($fullPath);
         }
 
-        // Database Transaction
-        DB::transaction(function () use ($validated, $imagePaths) {
-            // 1. Create the PHC facility
-            $phc = Phc::create([
-                'clinic_name' => $validated['clinic_name'],
-                'lga_id' => $validated['lga_id'],
-                'ward_id' => $validated['ward_id'],
-                'address' => $validated['address'],
-                'email' => $validated['email'],
-                'contact_phone' => $validated['contact_phone'],
-                'incharge_name' => $validated['incharge_name'],
-                // Eloquent casting handles the array to JSON conversion
-                'anc_schedule' => $validated['anc_working_days'], 
-                'images' => $imagePaths, 
-            ]);
-
-            // 2. Create the In-Charge User account
-            User::create([
-                'name' => $validated['user_name'],
-                'email' => $validated['user_name'],
-                'password' => Hash::make($validated['password']),
-                'role' => 'phc_staff',
-                'phc_id' => $phc->id, 
-            ]);
-        });
-        
-        return redirect()->route('admin.manage-facilities')->with('success', 'PHC and In-Charge account created successfully.');
+        return redirect()->back()->with('error', 'Failed to create PHC: ' . $e->getMessage())->withInput();
     }
+}
 }
