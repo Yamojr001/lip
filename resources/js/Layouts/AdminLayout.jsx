@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, usePage } from "@inertiajs/react";
-import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   LayoutDashboard,
   BarChart3,
@@ -19,7 +19,7 @@ import LanguageSwitcher from "@/Components/LanguageSwitcher";
 export default function AdminLayout({ children, title = "Dashboard" }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { url } = usePage();
-  const { t } = useTranslation();
+  const { t } = useLanguage();
 
   const NavItem = ({ href, icon: Icon, label }) => (
     <Link

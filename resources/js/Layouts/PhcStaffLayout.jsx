@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, usePage } from "@inertiajs/react";
-import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -21,7 +21,7 @@ export default function PhcStaffLayout({ children, title = "PHC Dashboard" }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { url, props } = usePage();
   const { auth } = props;
-  const { t } = useTranslation();
+  const { t } = useLanguage();
 
   const NavItem = ({ href, icon: Icon, label, method = "get" }) => (
     <Link

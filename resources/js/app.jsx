@@ -1,11 +1,11 @@
 import './bootstrap';
 import '../css/app.css';
-import './i18n';
 
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { StrictMode } from 'react';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Lafiyar Iyali Project';
 
@@ -19,7 +19,9 @@ createInertiaApp({
     setup({ el, App, props }) {
         createRoot(el).render(
             <StrictMode>
-                <App {...props} />
+                <LanguageProvider>
+                    <App {...props} />
+                </LanguageProvider>
             </StrictMode>
         );
     },

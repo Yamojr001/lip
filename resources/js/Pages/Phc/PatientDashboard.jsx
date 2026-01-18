@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useForm, Link } from "@inertiajs/react";
-import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/LanguageContext";
 import PhcStaffLayout from "@/Layouts/PhcStaffLayout";
 import {
     User, Calendar, MapPin, Phone, Heart, Baby, Stethoscope, 
@@ -37,7 +37,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 };
 
 const AncForm = ({ patient, onClose }) => {
-    const { t } = useTranslation();
+    const { t } = useLanguage();
     const today = new Date().toISOString().split('T')[0];
     
     const { data, setData, post, processing, errors } = useForm({
@@ -233,7 +233,7 @@ const AncForm = ({ patient, onClose }) => {
 };
 
 const DeliveryForm = ({ patient, onClose }) => {
-    const { t } = useTranslation();
+    const { t } = useLanguage();
     const today = new Date().toISOString().split('T')[0];
     
     const getAgeRange = (age) => {
@@ -582,7 +582,7 @@ const PncForm = ({ patient, onClose }) => {
 };
 
 const FamilyPlanningForm = ({ patient, onClose }) => {
-    const { t } = useTranslation();
+    const { t } = useLanguage();
     const today = new Date().toISOString().split('T')[0];
     
     const { data, setData, post, processing, errors } = useForm({
