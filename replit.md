@@ -48,6 +48,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (January 2026)
 
+### Multi-Language Support (i18n)
+- **Languages Supported**: English and Hausa
+- **i18n Library**: react-i18next with browser language detection
+- **Language Switcher**: Click-based dropdown in header with accessibility support (ARIA attributes)
+- **Translation Files**: Located in `resources/js/i18n/locales/` (en.json, ha.json)
+- **Coverage**: Navigation, common UI elements, patient forms, ANC, delivery, immunization sections
+
+### Database Optimization
+- **Indexes Added**: lga_id, ward_id, phc_id, edd, place_of_delivery, delivery_outcome, phone_number
+- **Query Optimization**: Eager loading for patient relationships
+- **Admin Dashboard**: Updated to display disaggregated delivery data with new statistics
+
 ### UNICEF/Kaduna State PHC Board Compliance Updates
 - **Vital Signs Tracking**: Added blood pressure, weight (kg), height (cm), blood group, and blood level (g/dL) fields to patient registration
 - **Auto-EDD Calculation**: EDD automatically calculated from pregnancy age in weeks using 40-week gestation model
@@ -79,6 +91,8 @@ Preferred communication style: Simple, everyday language.
 - **framer-motion** 12.x - Animation library
 - **lucide-react** & **@heroicons/react** - Icon libraries
 - **axios** - HTTP client for AJAX requests
+- **i18next** & **react-i18next** - Internationalization framework
+- **i18next-browser-languagedetector** - Automatic language detection
 
 ### Development Tools
 - **Vite** 7.x with Laravel and React plugins

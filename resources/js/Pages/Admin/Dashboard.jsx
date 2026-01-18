@@ -391,16 +391,19 @@ const DeliveryTab = ({ data, statistics }) => {
         deliveryTiming = {},
         kitsReceived = 0,
         facilityDeliveries = 0,
+        registeredFacilityDeliveries = 0,
+        otherFacilityDeliveries = 0,
         homeDeliveries = 0,
         traditionalDeliveries = 0
     } = data;
 
-    // Prepare data for charts
+    // Prepare data for charts - disaggregated delivery places
     const deliveryLocationData = [
-        { name: 'Health Facility', value: facilityDeliveries },
-        { name: 'Home', value: homeDeliveries },
-        { name: 'Traditional', value: traditionalDeliveries }
-    ];
+        { name: 'Registered Facility', value: registeredFacilityDeliveries || 0 },
+        { name: 'Other Facility', value: otherFacilityDeliveries || 0 },
+        { name: 'Home', value: homeDeliveries || 0 },
+        { name: 'Traditional Attendant', value: traditionalDeliveries || 0 }
+    ].filter(item => item.value > 0);
 
     const deliveryTypeData = Object.entries(deliveryTypes).map(([type, count]) => ({
         type,
@@ -426,32 +429,37 @@ const DeliveryTab = ({ data, statistics }) => {
                 </div>
             </div>
 
-            {/* Delivery Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-lg text-center border-l-4 border-blue-600">
-                    <Baby className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+            {/* Delivery Overview - Disaggregated */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="bg-white p-5 rounded-xl shadow-lg text-center border-l-4 border-blue-600">
+                    <Baby className="h-7 w-7 text-blue-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-gray-900">{totalDelivered}</p>
-                    <p className="text-sm text-gray-600">Total Deliveries</p>
+                    <p className="text-xs text-gray-600">Total Deliveries</p>
                 </div>
-                <div className="bg-white p-6 rounded-xl shadow-lg text-center border-l-4 border-green-600">
-                    <Hospital className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-gray-900">{facilityDeliveries}</p>
-                    <p className="text-sm text-gray-600">Facility Deliveries</p>
+                <div className="bg-white p-5 rounded-xl shadow-lg text-center border-l-4 border-green-600">
+                    <Hospital className="h-7 w-7 text-green-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-gray-900">{registeredFacilityDeliveries || 0}</p>
+                    <p className="text-xs text-gray-600">Registered Facility</p>
                 </div>
-                <div className="bg-white p-6 rounded-xl shadow-lg text-center border-l-4 border-yellow-600">
-                    <Home className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-gray-900">{homeDeliveries}</p>
-                    <p className="text-sm text-gray-600">Home Deliveries</p>
+                <div className="bg-white p-5 rounded-xl shadow-lg text-center border-l-4 border-purple-600">
+                    <Building className="h-7 w-7 text-purple-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-gray-900">{otherFacilityDeliveries || 0}</p>
+                    <p className="text-xs text-gray-600">Other Facility</p>
                 </div>
-                <div className="bg-white p-6 rounded-xl shadow-lg text-center border-l-4 border-orange-600">
-                    <Users className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-gray-900">{traditionalDeliveries}</p>
-                    <p className="text-sm text-gray-600">Traditional Deliveries</p>
+                <div className="bg-white p-5 rounded-xl shadow-lg text-center border-l-4 border-yellow-600">
+                    <Home className="h-7 w-7 text-yellow-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-gray-900">{homeDeliveries || 0}</p>
+                    <p className="text-xs text-gray-600">Home Deliveries</p>
+                </div>
+                <div className="bg-white p-5 rounded-xl shadow-lg text-center border-l-4 border-orange-600">
+                    <Users className="h-7 w-7 text-orange-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-gray-900">{traditionalDeliveries || 0}</p>
+                    <p className="text-xs text-gray-600">Traditional Attendant</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <ChartCard title="Delivery Location Distribution">
+                <ChartCard title="Delivery Location Distribution (Disaggregated)">
                     <div className="h-80">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
@@ -464,10 +472,12 @@ const DeliveryTab = ({ data, statistics }) => {
                                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                                 >
                                     <Cell fill="#10b981" />
+                                    <Cell fill="#8b5cf6" />
                                     <Cell fill="#f59e0b" />
                                     <Cell fill="#ef4444" />
                                 </Pie>
                                 <Tooltip />
+                                <Legend />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>

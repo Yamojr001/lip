@@ -83,11 +83,17 @@ class AdminController extends Controller
 
         $delivered = $patients->whereNotNull('date_of_delivery')->count();
 
-        // Core KPIs
-        $facilityDeliveries = $patients->where('place_of_delivery', 'Health Facility')->count();
+        // Core KPIs - Updated for disaggregated delivery places
+        $registeredFacilityDeliveries = $patients->where('place_of_delivery', 'Registered Facility')->count();
+        $homeDeliveries = $patients->where('place_of_delivery', 'Home')->count();
+        $otherFacilityDeliveries = $patients->where('place_of_delivery', 'Other Facility')->count();
+        $traditionalDeliveries = $patients->where('place_of_delivery', 'Traditional Attendant')->count();
+        // Legacy support
+        $legacyFacilityDeliveries = $patients->where('place_of_delivery', 'Health Facility')->count();
+        $facilityDeliveries = $registeredFacilityDeliveries + $legacyFacilityDeliveries + $otherFacilityDeliveries;
+        
         $liveBirths = $patients->where('delivery_outcome', 'Live birth')->count();
         $stillbirths = $patients->where('delivery_outcome', 'Stillbirth')->count();
-        $miscarriages = $patients->where('delivery_outcome', 'Miscarriage')->count();
         
         $deliveryRate = $totalRegistered > 0 ? round(($delivered / $totalRegistered) * 100, 1) : 0;
         $facilityDeliveryRate = $delivered > 0 ? round(($facilityDeliveries / $delivered) * 100, 1) : 0;
@@ -992,6 +998,14 @@ class AdminController extends Controller
             }
         }
 
+        // Disaggregated delivery place stats
+        $registeredFacility = $delivered->where('place_of_delivery', 'Registered Facility')->count();
+        $otherFacility = $delivered->where('place_of_delivery', 'Other Facility')->count();
+        $home = $delivered->where('place_of_delivery', 'Home')->count();
+        $traditional = $delivered->where('place_of_delivery', 'Traditional Attendant')->count();
+        // Legacy support
+        $legacyFacility = $delivered->where('place_of_delivery', 'Health Facility')->count();
+
         return [
             'totalDelivered' => $totalDelivered,
             'deliveryTypes' => $deliveryTypes,
@@ -999,9 +1013,11 @@ class AdminController extends Controller
             'deliveryLocations' => $deliveryLocations,
             'deliveryTiming' => $deliveryTiming,
             'kitsReceived' => $delivered->where('delivery_kits_received', true)->count(),
-            'facilityDeliveries' => $delivered->where('place_of_delivery', 'Health Facility')->count(),
-            'homeDeliveries' => $delivered->where('place_of_delivery', 'Home')->count(),
-            'traditionalDeliveries' => $delivered->where('place_of_delivery', 'Traditional Attendant')->count(),
+            'registeredFacilityDeliveries' => $registeredFacility,
+            'otherFacilityDeliveries' => $otherFacility,
+            'homeDeliveries' => $home,
+            'traditionalDeliveries' => $traditional,
+            'facilityDeliveries' => $registeredFacility + $otherFacility + $legacyFacility,
         ];
     }
 
