@@ -36,8 +36,11 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 };
 
 const AncForm = ({ patient, onClose }) => {
+    const { t } = useTranslation();
+    const today = new Date().toISOString().split('T')[0];
+    
     const { data, setData, post, processing, errors } = useForm({
-        visit_date: new Date().toISOString().split('T')[0],
+        visit_date: today,
         urinalysis: false,
         iron_folate: false,
         mms: false,
@@ -49,6 +52,18 @@ const AncForm = ({ patient, onClose }) => {
         hiv_result: '',
         paid: false,
         payment_amount: '',
+        counseling_hiv_syphilis: false,
+        syphilis_test: '',
+        syphilis_treated: false,
+        hep_b_test: '',
+        hep_c_test: '',
+        itn_given: false,
+        deworming: false,
+        blood_sugar_checked: false,
+        blood_sugar_result: '',
+        vitamin_fe: false,
+        visit_outcome: '',
+        facility_name: patient.phc?.clinic_name || '',
     });
 
     const handleSubmit = (e) => {
@@ -59,103 +74,157 @@ const AncForm = ({ patient, onClose }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Visit Date *</label>
-                <input
-                    type="date"
-                    value={data.visit_date}
-                    onChange={(e) => setData('visit_date', e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                    required
-                />
+        <form onSubmit={handleSubmit} className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+            <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-blue-800 mb-3">Patient Information (Read-Only)</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div><span className="font-medium">Name:</span> {patient.woman_name}</div>
+                    <div><span className="font-medium">Age:</span> {patient.age} years</div>
+                    <div><span className="font-medium">Card No:</span> {patient.unique_id}</div>
+                    <div><span className="font-medium">Parity:</span> {patient.parity || 'N/A'}</div>
+                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-                {[
-                    { key: 'urinalysis', label: 'Urinalysis' },
-                    { key: 'iron_folate', label: 'Iron/Folate' },
-                    { key: 'mms', label: 'MMS' },
-                    { key: 'sp', label: 'SP' },
-                    { key: 'pcv', label: 'PCV' },
-                    { key: 'td', label: 'TD (Tetanus/Diphtheria)' },
-                ].map(({ key, label }) => (
-                    <label key={key} className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input
-                            type="checkbox"
-                            checked={data[key]}
-                            onChange={(e) => setData(key, e.target.checked)}
-                            className="w-5 h-5 text-emerald-600"
-                        />
-                        <span>{label}</span>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Visit Date *</label>
+                    <input type="date" value={data.visit_date} onChange={(e) => setData('visit_date', e.target.value)} className="w-full border rounded-lg p-2" required />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Facility Name</label>
+                    <input type="text" value={data.facility_name} onChange={(e) => setData('facility_name', e.target.value)} className="w-full border rounded-lg p-2" />
+                </div>
+            </div>
+
+            <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-green-800 mb-3">ANC Services</h4>
+                <div className="grid grid-cols-3 gap-2">
+                    {[
+                        { key: 'urinalysis', label: 'Urinalysis' },
+                        { key: 'iron_folate', label: 'Iron/Folate' },
+                        { key: 'mms', label: 'MMS' },
+                        { key: 'sp', label: 'SP' },
+                        { key: 'pcv', label: 'PCV' },
+                        { key: 'td', label: 'TD' },
+                        { key: 'vitamin_fe', label: 'Vitamin/Fe' },
+                        { key: 'itn_given', label: 'ITN Given' },
+                        { key: 'deworming', label: 'Deworming' },
+                    ].map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-white">
+                            <input type="checkbox" checked={data[key]} onChange={(e) => setData(key, e.target.checked)} className="w-4 h-4 text-emerald-600" />
+                            <span className="text-sm">{label}</span>
+                        </label>
+                    ))}
+                </div>
+            </div>
+
+            <div className="bg-purple-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-purple-800 mb-3">Counseling & HIV Testing</h4>
+                <div className="space-y-3">
+                    <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={data.counseling_hiv_syphilis} onChange={(e) => setData('counseling_hiv_syphilis', e.target.checked)} className="w-4 h-4" />
+                        <span className="text-sm">HIV & Syphilis Counseling Done</span>
                     </label>
-                ))}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">HIV Test</label>
+                            <select value={data.hiv_test} onChange={(e) => setData('hiv_test', e.target.value)} className="w-full border rounded p-2 text-sm">
+                                <option value="">Not tested</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                        {data.hiv_test === 'Yes' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">HIV Result</label>
+                                <select value={data.hiv_result} onChange={(e) => setData('hiv_result', e.target.value)} className="w-full border rounded p-2 text-sm">
+                                    <option value="">Select</option>
+                                    <option value="Negative">Negative</option>
+                                    <option value="Positive">Positive</option>
+                                </select>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">HIV Test</label>
-                <select
-                    value={data.hiv_test}
-                    onChange={(e) => setData('hiv_test', e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                >
-                    <option value="">Not tested</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                </select>
-            </div>
-
-            {data.hiv_test === 'Yes' && (
-                <div className="grid grid-cols-2 gap-3">
-                    <label className="flex items-center gap-2 p-3 border rounded-lg">
-                        <input
-                            type="checkbox"
-                            checked={data.hiv_result_received}
-                            onChange={(e) => setData('hiv_result_received', e.target.checked)}
-                            className="w-5 h-5"
-                        />
-                        <span>Result Received</span>
-                    </label>
-                    {data.hiv_result_received && (
-                        <select
-                            value={data.hiv_result}
-                            onChange={(e) => setData('hiv_result', e.target.value)}
-                            className="border rounded-lg p-3"
-                        >
-                            <option value="">Select Result</option>
-                            <option value="Negative">Negative</option>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-yellow-800 mb-3">Syphilis & Hepatitis Testing</h4>
+                <div className="grid grid-cols-3 gap-3">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Syphilis Test</label>
+                        <select value={data.syphilis_test} onChange={(e) => setData('syphilis_test', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="">Select</option>
                             <option value="Positive">Positive</option>
+                            <option value="Negative">Negative</option>
+                            <option value="Not Done">Not Done</option>
                         </select>
+                    </div>
+                    {data.syphilis_test === 'Positive' && (
+                        <div className="flex items-end">
+                            <label className="flex items-center gap-2 p-2 border rounded bg-white">
+                                <input type="checkbox" checked={data.syphilis_treated} onChange={(e) => setData('syphilis_treated', e.target.checked)} className="w-4 h-4" />
+                                <span className="text-sm">Treated</span>
+                            </label>
+                        </div>
+                    )}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Hepatitis B</label>
+                        <select value={data.hep_b_test} onChange={(e) => setData('hep_b_test', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="">Select</option>
+                            <option value="Positive">Positive</option>
+                            <option value="Negative">Negative</option>
+                            <option value="Not Done">Not Done</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Hepatitis C</label>
+                        <select value={data.hep_c_test} onChange={(e) => setData('hep_c_test', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="">Select</option>
+                            <option value="Positive">Positive</option>
+                            <option value="Negative">Negative</option>
+                            <option value="Not Done">Not Done</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-orange-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-orange-800 mb-3">Blood Sugar Check</h4>
+                <div className="grid grid-cols-2 gap-3">
+                    <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={data.blood_sugar_checked} onChange={(e) => setData('blood_sugar_checked', e.target.checked)} className="w-4 h-4" />
+                        <span className="text-sm">Blood Sugar Checked</span>
+                    </label>
+                    {data.blood_sugar_checked && (
+                        <input type="text" placeholder="Result (e.g., 5.5 mmol/L)" value={data.blood_sugar_result} onChange={(e) => setData('blood_sugar_result', e.target.value)} className="border rounded p-2 text-sm" />
                     )}
                 </div>
-            )}
-
-            <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2">
-                    <input
-                        type="checkbox"
-                        checked={data.paid}
-                        onChange={(e) => setData('paid', e.target.checked)}
-                        className="w-5 h-5"
-                    />
-                    <span>Payment Made</span>
-                </label>
-                {data.paid && (
-                    <input
-                        type="number"
-                        placeholder="Amount"
-                        value={data.payment_amount}
-                        onChange={(e) => setData('payment_amount', e.target.value)}
-                        className="flex-1 border rounded-lg p-3"
-                    />
-                )}
             </div>
 
-            <button
-                type="submit"
-                disabled={processing}
-                className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50"
-            >
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Visit Outcome</label>
+                    <select value={data.visit_outcome} onChange={(e) => setData('visit_outcome', e.target.value)} className="w-full border rounded-lg p-2">
+                        <option value="">Select</option>
+                        <option value="Continued">Continued</option>
+                        <option value="Referred">Referred</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Defaulted">Defaulted</option>
+                    </select>
+                </div>
+                <div className="flex items-end gap-3">
+                    <label className="flex items-center gap-2 p-2 border rounded">
+                        <input type="checkbox" checked={data.paid} onChange={(e) => setData('paid', e.target.checked)} className="w-4 h-4" />
+                        <span className="text-sm">Payment Made</span>
+                    </label>
+                    {data.paid && (
+                        <input type="number" placeholder="Amount" value={data.payment_amount} onChange={(e) => setData('payment_amount', e.target.value)} className="w-24 border rounded p-2 text-sm" />
+                    )}
+                </div>
+            </div>
+
+            <button type="submit" disabled={processing} className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50">
                 {processing ? 'Saving...' : `Record ANC Visit ${patient.anc_visits_count + 1}`}
             </button>
         </form>

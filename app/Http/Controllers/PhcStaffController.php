@@ -1518,6 +1518,18 @@ class PhcStaffController extends Controller
             'hiv_result' => 'nullable|in:Positive,Negative',
             'paid' => 'boolean',
             'payment_amount' => 'nullable|numeric|min:0',
+            'counseling_hiv_syphilis' => 'boolean',
+            'syphilis_test' => 'nullable|in:Positive,Negative,Not Done',
+            'syphilis_treated' => 'boolean',
+            'hep_b_test' => 'nullable|in:Positive,Negative,Not Done',
+            'hep_c_test' => 'nullable|in:Positive,Negative,Not Done',
+            'itn_given' => 'boolean',
+            'deworming' => 'boolean',
+            'blood_sugar_checked' => 'boolean',
+            'blood_sugar_result' => 'nullable|string|max:20',
+            'vitamin_fe' => 'boolean',
+            'visit_outcome' => 'nullable|in:Continued,Referred,Delivered,Defaulted',
+            'facility_name' => 'nullable|string|max:200',
         ]);
 
         $updateData = [
@@ -1533,6 +1545,18 @@ class PhcStaffController extends Controller
             "anc{$visitNumber}_hiv_result" => $validated['hiv_result'] ?? null,
             "anc{$visitNumber}_paid" => $validated['paid'] ?? false,
             "anc{$visitNumber}_payment_amount" => $validated['payment_amount'] ?? null,
+            "anc{$visitNumber}_counseling_hiv_syphilis" => $validated['counseling_hiv_syphilis'] ?? false,
+            "anc{$visitNumber}_syphilis_test" => $validated['syphilis_test'] ?? null,
+            "anc{$visitNumber}_syphilis_treated" => $validated['syphilis_treated'] ?? false,
+            "anc{$visitNumber}_hep_b_test" => $validated['hep_b_test'] ?? null,
+            "anc{$visitNumber}_hep_c_test" => $validated['hep_c_test'] ?? null,
+            "anc{$visitNumber}_itn_given" => $validated['itn_given'] ?? false,
+            "anc{$visitNumber}_deworming" => $validated['deworming'] ?? false,
+            "anc{$visitNumber}_blood_sugar_checked" => $validated['blood_sugar_checked'] ?? false,
+            "anc{$visitNumber}_blood_sugar_result" => $validated['blood_sugar_result'] ?? null,
+            "anc{$visitNumber}_vitamin_fe" => $validated['vitamin_fe'] ?? false,
+            "anc{$visitNumber}_visit_outcome" => $validated['visit_outcome'] ?? null,
+            "anc{$visitNumber}_facility_name" => $validated['facility_name'] ?? null,
         ];
 
         $patient->update($updateData);

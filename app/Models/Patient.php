@@ -29,41 +29,73 @@ class Patient extends Model
         'anc_visit_1_date', 'anc_visit_1_next_date', 'tracked_before_anc1', 'anc1_paid', 'anc1_payment_amount',
         'anc1_urinalysis', 'anc1_iron_folate', 'anc1_mms', 'anc1_sp', 'anc1_pcv', 'anc1_td',
         'anc1_hiv_test', 'anc1_hiv_result_received', 'anc1_hiv_result',
+        'anc1_counseling_hiv_syphilis', 'anc1_syphilis_test', 'anc1_syphilis_treated',
+        'anc1_hep_b_test', 'anc1_hep_c_test', 'anc1_itn_given', 'anc1_deworming',
+        'anc1_blood_sugar_checked', 'anc1_blood_sugar_result', 'anc1_vitamin_fe',
+        'anc1_visit_outcome', 'anc1_facility_name',
         
         // Visit 2
         'anc_visit_2_date', 'anc_visit_2_next_date', 'tracked_before_anc2', 'anc2_paid', 'anc2_payment_amount',
         'anc2_urinalysis', 'anc2_iron_folate', 'anc2_mms', 'anc2_sp', 'anc2_pcv', 'anc2_td',
         'anc2_hiv_test', 'anc2_hiv_result_received', 'anc2_hiv_result',
+        'anc2_counseling_hiv_syphilis', 'anc2_syphilis_test', 'anc2_syphilis_treated',
+        'anc2_hep_b_test', 'anc2_hep_c_test', 'anc2_itn_given', 'anc2_deworming',
+        'anc2_blood_sugar_checked', 'anc2_blood_sugar_result', 'anc2_vitamin_fe',
+        'anc2_visit_outcome', 'anc2_facility_name',
         
         // Visit 3
         'anc_visit_3_date', 'anc_visit_3_next_date', 'tracked_before_anc3', 'anc3_paid', 'anc3_payment_amount',
         'anc3_urinalysis', 'anc3_iron_folate', 'anc3_mms', 'anc3_sp', 'anc3_pcv', 'anc3_td',
         'anc3_hiv_test', 'anc3_hiv_result_received', 'anc3_hiv_result',
+        'anc3_counseling_hiv_syphilis', 'anc3_syphilis_test', 'anc3_syphilis_treated',
+        'anc3_hep_b_test', 'anc3_hep_c_test', 'anc3_itn_given', 'anc3_deworming',
+        'anc3_blood_sugar_checked', 'anc3_blood_sugar_result', 'anc3_vitamin_fe',
+        'anc3_visit_outcome', 'anc3_facility_name',
         
         // Visit 4
         'anc_visit_4_date', 'anc_visit_4_next_date', 'tracked_before_anc4', 'anc4_paid', 'anc4_payment_amount',
         'anc4_urinalysis', 'anc4_iron_folate', 'anc4_mms', 'anc4_sp', 'anc4_pcv', 'anc4_td',
         'anc4_hiv_test', 'anc4_hiv_result_received', 'anc4_hiv_result',
+        'anc4_counseling_hiv_syphilis', 'anc4_syphilis_test', 'anc4_syphilis_treated',
+        'anc4_hep_b_test', 'anc4_hep_c_test', 'anc4_itn_given', 'anc4_deworming',
+        'anc4_blood_sugar_checked', 'anc4_blood_sugar_result', 'anc4_vitamin_fe',
+        'anc4_visit_outcome', 'anc4_facility_name',
         
         // Visit 5
         'anc_visit_5_date', 'anc_visit_5_next_date', 'tracked_before_anc5', 'anc5_paid', 'anc5_payment_amount',
         'anc5_urinalysis', 'anc5_iron_folate', 'anc5_mms', 'anc5_sp', 'anc5_pcv', 'anc5_td',
         'anc5_hiv_test', 'anc5_hiv_result_received', 'anc5_hiv_result',
+        'anc5_counseling_hiv_syphilis', 'anc5_syphilis_test', 'anc5_syphilis_treated',
+        'anc5_hep_b_test', 'anc5_hep_c_test', 'anc5_itn_given', 'anc5_deworming',
+        'anc5_blood_sugar_checked', 'anc5_blood_sugar_result', 'anc5_vitamin_fe',
+        'anc5_visit_outcome', 'anc5_facility_name',
         
         // Visit 6
         'anc_visit_6_date', 'anc_visit_6_next_date', 'tracked_before_anc6', 'anc6_paid', 'anc6_payment_amount',
         'anc6_urinalysis', 'anc6_iron_folate', 'anc6_mms', 'anc6_sp', 'anc6_pcv', 'anc6_td',
         'anc6_hiv_test', 'anc6_hiv_result_received', 'anc6_hiv_result',
+        'anc6_counseling_hiv_syphilis', 'anc6_syphilis_test', 'anc6_syphilis_treated',
+        'anc6_hep_b_test', 'anc6_hep_c_test', 'anc6_itn_given', 'anc6_deworming',
+        'anc6_blood_sugar_checked', 'anc6_blood_sugar_result', 'anc6_vitamin_fe',
+        'anc6_visit_outcome', 'anc6_facility_name',
         
         // Visit 7
         'anc_visit_7_date', 'anc_visit_7_next_date', 'tracked_before_anc7', 'anc7_paid', 'anc7_payment_amount',
         'anc7_urinalysis', 'anc7_iron_folate', 'anc7_mms', 'anc7_sp', 'anc7_pcv', 'anc7_td',
         'anc7_hiv_test', 'anc7_hiv_result_received', 'anc7_hiv_result',
+        'anc7_counseling_hiv_syphilis', 'anc7_syphilis_test', 'anc7_syphilis_treated',
+        'anc7_hep_b_test', 'anc7_hep_c_test', 'anc7_itn_given', 'anc7_deworming',
+        'anc7_blood_sugar_checked', 'anc7_blood_sugar_result', 'anc7_vitamin_fe',
+        'anc7_visit_outcome', 'anc7_facility_name',
         
         // Visit 8
         'anc_visit_8_date', 'anc_visit_8_next_date', 'tracked_before_anc8', 'anc8_paid', 'anc8_payment_amount',
         'anc8_urinalysis', 'anc8_iron_folate', 'anc8_mms', 'anc8_sp', 'anc8_pcv', 'anc8_td',
         'anc8_hiv_test', 'anc8_hiv_result_received', 'anc8_hiv_result',
+        'anc8_counseling_hiv_syphilis', 'anc8_syphilis_test', 'anc8_syphilis_treated',
+        'anc8_hep_b_test', 'anc8_hep_c_test', 'anc8_itn_given', 'anc8_deworming',
+        'anc8_blood_sugar_checked', 'anc8_blood_sugar_result', 'anc8_vitamin_fe',
+        'anc8_visit_outcome', 'anc8_facility_name',
 
         'additional_anc_count',
 
