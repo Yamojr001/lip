@@ -33,7 +33,7 @@ class PhcStaffController extends Controller
         $wards = Ward::all(['id', 'lga_id', 'name', 'code']);
         $phcFacilities = Phc::all(['id', 'ward_id', 'clinic_name']);
 
-        return Inertia::render('Phc/CreatePatient', [
+        return Inertia::render('Phc/RegisterPatient', [
             'lgas' => $lgas,
             'wards' => $wards,
             'phcFacilities' => $phcFacilities,
@@ -1106,7 +1106,7 @@ class PhcStaffController extends Controller
     private function getMonthlyRegistrations(int $phcId) : array
     {
         return Patient::where('phc_id', $phcId)
-            ->select(DB::raw('MONTH(date_of_registration) as month'), DB::raw('count(*) as count'))
+            ->select(DB::raw('EXTRACT(MONTH FROM date_of_registration) as month'), DB::raw('count(*) as count'))
             ->whereYear('date_of_registration', Carbon::now()->year)
             ->groupBy('month')
             ->orderBy('month')
