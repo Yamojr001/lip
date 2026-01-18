@@ -1020,4 +1020,227 @@ class StatisticsController extends Controller
 
         return $highRisk;
     }
+
+    public function ancStatistics(Request $request)
+    {
+        $patients = Patient::all();
+        $totalRegistered = $patients->count();
+        
+        $ancVisitsBreakdown = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $ancVisitsBreakdown["anc{$i}"] = $patients->filter(fn($p) => $this->hasCompletedAncVisit($p, $i))->count();
+        }
+        
+        $anc4Completed = $patients->filter(fn($p) => $this->hasCompletedAncVisit($p, 4))->count();
+        $anc8Completed = $patients->filter(fn($p) => $this->hasCompletedAncVisit($p, 8))->count();
+        
+        $hivStatus = [
+            ['name' => 'Total Tested', 'value' => $patients->filter(fn($p) => $p->anc1_hiv_result && $p->anc1_hiv_result !== 'Not Tested')->count()],
+            ['name' => 'Negative', 'value' => $patients->filter(fn($p) => $p->anc1_hiv_result === 'Negative')->count()],
+            ['name' => 'Positive', 'value' => $patients->filter(fn($p) => $p->anc1_hiv_result === 'Positive')->count()],
+            ['name' => 'Not Tested', 'value' => $patients->filter(fn($p) => !$p->anc1_hiv_result || $p->anc1_hiv_result === 'Not Tested')->count()],
+        ];
+        
+        $ancVisitCompletion = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $ancVisitCompletion[] = ['name' => "ANC {$i}", 'value' => $ancVisitsBreakdown["anc{$i}"]];
+        }
+        
+        return Inertia::render('Admin/Statistics/AncStatistics', [
+            'statistics' => [
+                'totalRegistered' => $totalRegistered,
+                'anc4Rate' => $totalRegistered > 0 ? round(($anc4Completed / $totalRegistered) * 100, 1) : 0,
+                'anc8Rate' => $totalRegistered > 0 ? round(($anc8Completed / $totalRegistered) * 100, 1) : 0,
+                'pendingAnc8' => $totalRegistered - $anc8Completed,
+                'ancVisitsBreakdown' => $ancVisitsBreakdown,
+            ],
+            'chartData' => [
+                'ancVisitCompletion' => $ancVisitCompletion,
+                'hivStatus' => $hivStatus,
+            ],
+        ]);
+    }
+
+    public function pncStatistics(Request $request)
+    {
+        $patients = Patient::whereNotNull('date_of_delivery')->get();
+        $totalDelivered = $patients->count();
+        
+        $pnc1Received = $patients->whereNotNull('pnc_visit_1')->count();
+        $pnc2Received = $patients->whereNotNull('pnc_visit_2')->count();
+        $pnc3Received = $patients->whereNotNull('pnc_visit_3')->count();
+        
+        $pnc1Within48h = $patients->filter(function($p) {
+            if (!$p->pnc_visit_1 || !$p->date_of_delivery) return false;
+            return Carbon::parse($p->pnc_visit_1)->diffInHours(Carbon::parse($p->date_of_delivery)) <= 48;
+        })->count();
+        
+        $maternalServices = [
+            'breastfeeding' => $patients->filter(fn($p) => $p->pnc1_breastfeeding_counseling)->count(),
+            'nutrition' => $patients->filter(fn($p) => $p->pnc1_nutrition_counseling)->count(),
+            'fp' => $patients->filter(fn($p) => $p->pnc1_family_planning_counseling)->count(),
+            'bp' => $patients->filter(fn($p) => $p->pnc1_blood_pressure_check)->count(),
+            'iron' => $patients->filter(fn($p) => $p->pnc1_iron_folate_given)->count(),
+            'vitA' => $patients->filter(fn($p) => $p->pnc1_vitamin_a_given)->count(),
+        ];
+        
+        $newbornServices = [
+            'temp' => $patients->filter(fn($p) => $p->pnc1_newborn_temp_check)->count(),
+            'weight' => $patients->filter(fn($p) => $p->pnc1_newborn_weight_check)->count(),
+            'cord' => $patients->filter(fn($p) => $p->pnc1_newborn_cord_check)->count(),
+            'skin' => $patients->filter(fn($p) => $p->pnc1_newborn_skin_check)->count(),
+            'eye' => $patients->filter(fn($p) => $p->pnc1_newborn_eye_check)->count(),
+            'kmc' => $patients->filter(fn($p) => $p->pnc1_kmc_initiated)->count(),
+        ];
+        
+        return Inertia::render('Admin/Statistics/PncStatistics', [
+            'statistics' => [
+                'detailedCounts' => [
+                    'totalDelivered' => $totalDelivered,
+                    'pnc1Within48h' => $pnc1Within48h,
+                ],
+                'pnc1CompletionRate' => $totalDelivered > 0 ? round(($pnc1Received / $totalDelivered) * 100, 1) : 0,
+                'incompletePNCs' => $totalDelivered - $pnc3Received,
+            ],
+            'pncData' => [
+                'pnc1_received' => $pnc1Received,
+                'pnc2_received' => $pnc2Received,
+                'pnc3_received' => $pnc3Received,
+                'maternalServices' => $maternalServices,
+                'newbornServices' => $newbornServices,
+                'complications' => [
+                    'sepsis' => 0,
+                    'jaundice' => 0,
+                    'hypothermia' => 0,
+                    'asphyxia' => 0,
+                    'lbw' => 0,
+                ],
+            ],
+        ]);
+    }
+
+    public function fpStatistics(Request $request)
+    {
+        $patients = Patient::all();
+        $totalRegistered = $patients->count();
+        
+        $fpUptake = $patients->where('fp_uptake', true)->count();
+        $fpInterested = $patients->where('interested_in_fp', true)->count();
+        
+        $fpMethods = [
+            ['name' => 'Male Condom', 'value' => $patients->where('fp_method', 'Male Condom')->count()],
+            ['name' => 'Female Condom', 'value' => $patients->where('fp_method', 'Female Condom')->count()],
+            ['name' => 'Pill', 'value' => $patients->where('fp_method', 'Pill')->count()],
+            ['name' => 'Injectable', 'value' => $patients->where('fp_method', 'Injectable')->count()],
+            ['name' => 'Implant', 'value' => $patients->where('fp_method', 'Implant')->count()],
+            ['name' => 'IUD', 'value' => $patients->where('fp_method', 'IUD')->count()],
+            ['name' => 'Other', 'value' => $patients->whereNotNull('fp_method')->whereNotIn('fp_method', ['Male Condom', 'Female Condom', 'Pill', 'Injectable', 'Implant', 'IUD'])->count()],
+        ];
+        
+        return Inertia::render('Admin/Statistics/FamilyPlanningStatistics', [
+            'statistics' => [
+                'fpUptake' => $fpUptake,
+                'fpUptakeRate' => $fpInterested > 0 ? round(($fpUptake / $fpInterested) * 100, 1) : 0,
+            ],
+            'chartData' => [
+                'familyPlanning' => $fpMethods,
+            ],
+            'fpData' => [
+                'totalUsers' => $fpUptake,
+                'interestedCount' => $fpInterested,
+                'newAcceptors' => 0,
+                'revisits' => 0,
+            ],
+        ]);
+    }
+
+    public function nutritionStatistics(Request $request)
+    {
+        $children = \App\Models\Child::with('nutritionLogs')->get();
+        $logs = \App\Models\ChildNutritionLog::all();
+        
+        $totalAssessed = $logs->count();
+        $normalCount = $logs->where('nutritional_status', 'Normal')->count();
+        $mamCount = $logs->where('nutritional_status', 'MAM')->count();
+        $samCount = $logs->where('nutritional_status', 'SAM')->count();
+        
+        $exclusiveBf = $logs->where('breastfeeding_status', 'Exclusive')->count();
+        $bfWithWater = $logs->where('breastfeeding_status', 'Breastfeeding + Water')->count();
+        $partialBf = $logs->where('breastfeeding_status', 'Partial')->count();
+        $stoppedBf = $logs->where('breastfeeding_status', 'Stopped')->count();
+        
+        return Inertia::render('Admin/Statistics/NutritionStatistics', [
+            'nutritionData' => [
+                'totalAssessed' => $totalAssessed,
+                'normalCount' => $normalCount,
+                'mamCount' => $mamCount,
+                'samCount' => $samCount,
+                'exclusiveBf' => $exclusiveBf,
+                'bfWithWater' => $bfWithWater,
+                'partialBf' => $partialBf,
+                'stoppedBf' => $stoppedBf,
+                'vitaminAGiven' => $logs->where('vitamin_a_given', true)->count(),
+                'dewormingGiven' => $logs->where('deworming_given', true)->count(),
+                'ironGiven' => $logs->where('iron_given', true)->count(),
+                'referredForTreatment' => $logs->where('referred_for_treatment', true)->count(),
+                'cmamReferred' => $logs->where('cmam_referred', true)->count(),
+                'cmamAdmitted' => $logs->where('cmam_admitted', true)->count(),
+                'samRecovered' => $logs->where('sam_outcome', 'Recovered')->count(),
+                'samDefaulted' => $logs->where('sam_outcome', 'Defaulted')->count(),
+            ],
+        ]);
+    }
+
+    public function immunizationStatistics(Request $request)
+    {
+        $children = \App\Models\Child::all();
+        $totalChildren = $children->count();
+        
+        $immunizationData = [
+            'totalChildren' => $totalChildren,
+            'bcg' => $children->whereNotNull('bcg_date')->count(),
+            'opv0' => $children->whereNotNull('opv0_date')->count(),
+            'hepB0' => $children->whereNotNull('hep_b0_date')->count(),
+            'penta1' => $children->whereNotNull('penta1_date')->count(),
+            'pcv1' => $children->whereNotNull('pcv1_date')->count(),
+            'opv1' => $children->whereNotNull('opv1_date')->count(),
+            'rota1' => $children->whereNotNull('rota1_date')->count(),
+            'penta2' => $children->whereNotNull('penta2_date')->count(),
+            'pcv2' => $children->whereNotNull('pcv2_date')->count(),
+            'opv2' => $children->whereNotNull('opv2_date')->count(),
+            'rota2' => $children->whereNotNull('rota2_date')->count(),
+            'penta3' => $children->whereNotNull('penta3_date')->count(),
+            'pcv3' => $children->whereNotNull('pcv3_date')->count(),
+            'opv3' => $children->whereNotNull('opv3_date')->count(),
+            'ipv' => $children->whereNotNull('ipv_date')->count(),
+            'measles1' => $children->whereNotNull('measles1_date')->count(),
+            'yellowFever' => $children->whereNotNull('yellow_fever_date')->count(),
+            'vitaminA1' => $children->whereNotNull('vitamin_a1_date')->count(),
+            'fullyImmunized' => $children->filter(function($c) {
+                return $c->bcg_date && $c->measles1_date && $c->penta3_date;
+            })->count(),
+            'pendingVaccines' => $children->filter(function($c) {
+                return !$c->measles1_date || !$c->penta3_date;
+            })->count(),
+        ];
+        
+        $vaccineData = [
+            ['name' => 'BCG', 'value' => $immunizationData['bcg']],
+            ['name' => 'OPV0', 'value' => $immunizationData['opv0']],
+            ['name' => 'Penta1', 'value' => $immunizationData['penta1']],
+            ['name' => 'Penta2', 'value' => $immunizationData['penta2']],
+            ['name' => 'Penta3', 'value' => $immunizationData['penta3']],
+            ['name' => 'Measles1', 'value' => $immunizationData['measles1']],
+        ];
+        
+        return Inertia::render('Admin/Statistics/ImmunizationStatistics', [
+            'immunizationData' => $immunizationData,
+            'chartData' => [
+                'immunizationCoverage' => $vaccineData,
+            ],
+            'statistics' => [
+                'bcgImmunizationRate' => $totalChildren > 0 ? round(($immunizationData['bcg'] / $totalChildren) * 100, 1) : 0,
+            ],
+        ]);
+    }
 }

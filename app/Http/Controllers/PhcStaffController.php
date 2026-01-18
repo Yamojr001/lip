@@ -1627,12 +1627,75 @@ class PhcStaffController extends Controller
         $validated = $request->validate([
             'visit_number' => 'required|in:1,2,3',
             'visit_date' => 'required|date|before_or_equal:today',
+            'attendance_timing' => 'nullable|string|max:50',
+            'associated_problems' => 'nullable|string|max:255',
+            'mother_visit_timing' => 'nullable|string|max:50',
+            'newborn_visit_timing' => 'nullable|string|max:50',
+            'newborn_sex' => 'nullable|string|max:20',
+            'breastfeeding_counseling' => 'boolean',
+            'nutrition_counseling' => 'boolean',
+            'family_planning_counseling' => 'boolean',
+            'cord_care_counseling' => 'boolean',
+            'temperature_check' => 'boolean',
+            'blood_pressure_check' => 'boolean',
+            'pv_examination' => 'boolean',
+            'breast_examination' => 'boolean',
+            'anemia_check' => 'boolean',
+            'iron_folate_given' => 'boolean',
+            'vitamin_a_given' => 'boolean',
+            'newborn_temp_check' => 'boolean',
+            'newborn_weight_check' => 'boolean',
+            'newborn_cord_check' => 'boolean',
+            'newborn_skin_check' => 'boolean',
+            'newborn_eye_check' => 'boolean',
+            'newborn_feeding_check' => 'boolean',
+            'neonatal_complications' => 'nullable|string|max:100',
+            'kmc_initiated' => 'boolean',
+            'outcome' => 'nullable|string|max:20',
+            'referred_out' => 'boolean',
+            'transportation_out' => 'nullable|string|max:50',
         ]);
 
-        $pncField = "pnc_visit_{$validated['visit_number']}";
-        $patient->update([$pncField => $validated['visit_date']]);
+        $visitNum = $validated['visit_number'];
+        $prefix = "pnc{$visitNum}_";
+        
+        $updateData = [
+            "pnc_visit_{$visitNum}" => $validated['visit_date'],
+            "{$prefix}attendance_timing" => $validated['attendance_timing'] ?? null,
+            "{$prefix}associated_problems" => $validated['associated_problems'] ?? null,
+            "{$prefix}mother_visit_timing" => $validated['mother_visit_timing'] ?? null,
+            "{$prefix}newborn_visit_timing" => $validated['newborn_visit_timing'] ?? null,
+            "{$prefix}breastfeeding_counseling" => $request->boolean('breastfeeding_counseling'),
+            "{$prefix}nutrition_counseling" => $request->boolean('nutrition_counseling'),
+            "{$prefix}family_planning_counseling" => $request->boolean('family_planning_counseling'),
+            "{$prefix}cord_care_counseling" => $request->boolean('cord_care_counseling'),
+            "{$prefix}temperature_check" => $request->boolean('temperature_check'),
+            "{$prefix}blood_pressure_check" => $request->boolean('blood_pressure_check'),
+            "{$prefix}pv_examination" => $request->boolean('pv_examination'),
+            "{$prefix}breast_examination" => $request->boolean('breast_examination'),
+            "{$prefix}anemia_check" => $request->boolean('anemia_check'),
+            "{$prefix}iron_folate_given" => $request->boolean('iron_folate_given'),
+            "{$prefix}vitamin_a_given" => $request->boolean('vitamin_a_given'),
+            "{$prefix}newborn_temp_check" => $request->boolean('newborn_temp_check'),
+            "{$prefix}newborn_weight_check" => $request->boolean('newborn_weight_check'),
+            "{$prefix}newborn_cord_check" => $request->boolean('newborn_cord_check'),
+            "{$prefix}newborn_skin_check" => $request->boolean('newborn_skin_check'),
+            "{$prefix}newborn_eye_check" => $request->boolean('newborn_eye_check'),
+            "{$prefix}newborn_feeding_check" => $request->boolean('newborn_feeding_check'),
+            "{$prefix}neonatal_complications" => $validated['neonatal_complications'] ?? null,
+            "{$prefix}kmc_initiated" => $request->boolean('kmc_initiated'),
+            "{$prefix}outcome" => $validated['outcome'] ?? null,
+            "{$prefix}referred_out" => $request->boolean('referred_out'),
+            "{$prefix}transportation_out" => $validated['transportation_out'] ?? null,
+        ];
+        
+        if ($visitNum == 1) {
+            $updateData['pnc1_newborn_sex'] = $validated['newborn_sex'] ?? null;
+        }
+        
+        $patient->update($updateData);
 
-        return redirect()->back()->with('success', "PNC Visit {$validated['visit_number']} recorded successfully!");
+        return redirect()->back()->with('success', "PNC Visit {$visitNum} recorded successfully!");
     }
 
     public function addFamilyPlanning(Request $request, $id)

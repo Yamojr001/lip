@@ -113,6 +113,42 @@ class Patient extends Model
 
         // --- Postnatal Checkup (3 visits) ---
         'pnc_visit_1', 'pnc_visit_2', 'pnc_visit_3',
+        
+        // PNC Visit 1 Comprehensive fields
+        'pnc1_attendance_timing', 'pnc1_associated_problems', 'pnc1_mother_visit_timing',
+        'pnc1_newborn_visit_timing', 'pnc1_newborn_sex',
+        'pnc1_breastfeeding_counseling', 'pnc1_nutrition_counseling', 'pnc1_family_planning_counseling',
+        'pnc1_cord_care_counseling', 'pnc1_temperature_check', 'pnc1_blood_pressure_check',
+        'pnc1_pv_examination', 'pnc1_breast_examination', 'pnc1_anemia_check',
+        'pnc1_iron_folate_given', 'pnc1_vitamin_a_given',
+        'pnc1_newborn_temp_check', 'pnc1_newborn_weight_check', 'pnc1_newborn_cord_check',
+        'pnc1_newborn_skin_check', 'pnc1_newborn_eye_check', 'pnc1_newborn_feeding_check',
+        'pnc1_neonatal_complications', 'pnc1_kmc_initiated', 'pnc1_outcome',
+        'pnc1_referred_out', 'pnc1_transportation_out',
+        
+        // PNC Visit 2 Comprehensive fields
+        'pnc2_attendance_timing', 'pnc2_associated_problems', 'pnc2_mother_visit_timing',
+        'pnc2_newborn_visit_timing',
+        'pnc2_breastfeeding_counseling', 'pnc2_nutrition_counseling', 'pnc2_family_planning_counseling',
+        'pnc2_cord_care_counseling', 'pnc2_temperature_check', 'pnc2_blood_pressure_check',
+        'pnc2_pv_examination', 'pnc2_breast_examination', 'pnc2_anemia_check',
+        'pnc2_iron_folate_given', 'pnc2_vitamin_a_given',
+        'pnc2_newborn_temp_check', 'pnc2_newborn_weight_check', 'pnc2_newborn_cord_check',
+        'pnc2_newborn_skin_check', 'pnc2_newborn_eye_check', 'pnc2_newborn_feeding_check',
+        'pnc2_neonatal_complications', 'pnc2_kmc_initiated', 'pnc2_outcome',
+        'pnc2_referred_out', 'pnc2_transportation_out',
+        
+        // PNC Visit 3 Comprehensive fields
+        'pnc3_attendance_timing', 'pnc3_associated_problems', 'pnc3_mother_visit_timing',
+        'pnc3_newborn_visit_timing',
+        'pnc3_breastfeeding_counseling', 'pnc3_nutrition_counseling', 'pnc3_family_planning_counseling',
+        'pnc3_cord_care_counseling', 'pnc3_temperature_check', 'pnc3_blood_pressure_check',
+        'pnc3_pv_examination', 'pnc3_breast_examination', 'pnc3_anemia_check',
+        'pnc3_iron_folate_given', 'pnc3_vitamin_a_given',
+        'pnc3_newborn_temp_check', 'pnc3_newborn_weight_check', 'pnc3_newborn_cord_check',
+        'pnc3_newborn_skin_check', 'pnc3_newborn_eye_check', 'pnc3_newborn_feeding_check',
+        'pnc3_neonatal_complications', 'pnc3_kmc_initiated', 'pnc3_outcome',
+        'pnc3_referred_out', 'pnc3_transportation_out',
 
         // --- Insurance & Payments ---
         'health_insurance_status', 'insurance_type', 'insurance_other_specify', 'insurance_satisfaction',

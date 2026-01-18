@@ -13,11 +13,17 @@ import {
   FileText,
   Apple,
   Syringe,
+  ChevronDown,
+  ChevronRight,
+  Stethoscope,
+  Heart,
+  Baby,
 } from "lucide-react";
 import LanguageSwitcher from "@/Components/LanguageSwitcher";
 
 export default function AdminLayout({ children, title = "Dashboard" }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [statsExpanded, setStatsExpanded] = useState(false);
   const { url } = usePage();
   const { t } = useLanguage();
 
@@ -31,6 +37,19 @@ export default function AdminLayout({ children, title = "Dashboard" }) {
       }`}
     >
       <Icon size={18} />
+      <span>{label}</span>
+    </Link>
+  );
+
+  const SubNavItem = ({ href, label }) => (
+    <Link
+      href={href}
+      className={`flex items-center gap-2 p-2 pl-8 rounded-lg transition text-sm ${
+        url === href
+          ? "bg-purple-100 text-purple-700 font-medium"
+          : "text-gray-600 hover:bg-gray-50"
+      }`}
+    >
       <span>{label}</span>
     </Link>
   );
@@ -51,13 +70,34 @@ export default function AdminLayout({ children, title = "Dashboard" }) {
           </button>
         </div>
 
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-2 overflow-y-auto max-h-[calc(100vh-150px)]">
           <NavItem href="/admin/dashboard" icon={LayoutDashboard} label={t('nav.dashboard')} />
-          <NavItem href="/admin/statistics" icon={Database} label={t('nav.statistics')} />
+          
+          <div className="space-y-1">
+            <button
+              onClick={() => setStatsExpanded(!statsExpanded)}
+              className="flex items-center justify-between w-full p-2 rounded-xl transition text-gray-700 hover:bg-gray-100"
+            >
+              <div className="flex items-center gap-2">
+                <BarChart3 size={18} />
+                <span>{t('nav.statistics')}</span>
+              </div>
+              {statsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+            {statsExpanded && (
+              <div className="ml-2 space-y-1 border-l-2 border-purple-200">
+                <SubNavItem href="/admin/statistics" label="Overview" />
+                <SubNavItem href="/admin/statistics/anc" label="ANC Statistics" />
+                <SubNavItem href="/admin/statistics/pnc" label="PNC Statistics" />
+                <SubNavItem href="/admin/statistics/family-planning" label="Family Planning" />
+                <SubNavItem href="/admin/statistics/nutrition" label="Nutrition" />
+                <SubNavItem href="/admin/statistics/immunization" label="Immunization" />
+              </div>
+            )}
+          </div>
+
           <NavItem href="/admin/nutrition-reports" icon={Apple} label={t('nav.nutritionReports')} />
-          <NavItem href="/admin/nutrition-statistics" icon={BarChart3} label={t('nav.nutritionStatistics')} />
           <NavItem href="/admin/vaccine-reports" icon={Syringe} label={t('nav.vaccineReports')} />
-          <NavItem href="/admin/vaccine-statistics" icon={BarChart3} label={t('nav.vaccineStatistics')} />
           <NavItem href="/admin/manage-locations" icon={MapPin} label={t('nav.manageLocations')} />
           <NavItem href="/admin/manage-facilities" icon={Hospital} label={t('nav.manageFacilities')} />
           <NavItem href="/admin/records" icon={FileText} label={t('nav.records')} />

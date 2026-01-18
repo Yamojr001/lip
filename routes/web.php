@@ -148,6 +148,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         )->name('vaccine.reports.update');
 
         Route::get('/statistics', [StatisticsController::class, 'index'])->name('statistics');
+        Route::get('/statistics/anc', [StatisticsController::class, 'ancStatistics'])->name('statistics.anc');
+        Route::get('/statistics/pnc', [StatisticsController::class, 'pncStatistics'])->name('statistics.pnc');
+        Route::get('/statistics/family-planning', [StatisticsController::class, 'fpStatistics'])->name('statistics.fp');
+        Route::get('/statistics/nutrition', [StatisticsController::class, 'nutritionStatistics'])->name('statistics.nutrition');
+        Route::get('/statistics/immunization', [StatisticsController::class, 'immunizationStatistics'])->name('statistics.immunization');
 
         Route::get('/records', function () {
             return Inertia::render('Admin/AllPatients');

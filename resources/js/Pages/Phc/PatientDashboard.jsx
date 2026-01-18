@@ -523,6 +523,33 @@ const PncForm = ({ patient, onClose }) => {
     const { data, setData, post, processing } = useForm({
         visit_number: '',
         visit_date: new Date().toISOString().split('T')[0],
+        attendance_timing: '',
+        associated_problems: '',
+        mother_visit_timing: '',
+        newborn_visit_timing: '',
+        newborn_sex: patient.baby_sex || '',
+        breastfeeding_counseling: false,
+        nutrition_counseling: false,
+        family_planning_counseling: false,
+        cord_care_counseling: false,
+        temperature_check: false,
+        blood_pressure_check: false,
+        pv_examination: false,
+        breast_examination: false,
+        anemia_check: false,
+        iron_folate_given: false,
+        vitamin_a_given: false,
+        newborn_temp_check: false,
+        newborn_weight_check: false,
+        newborn_cord_check: false,
+        newborn_skin_check: false,
+        newborn_eye_check: false,
+        newborn_feeding_check: false,
+        neonatal_complications: '',
+        kmc_initiated: false,
+        outcome: '',
+        referred_out: false,
+        transportation_out: '',
     });
 
     const getAvailableVisits = () => {
@@ -543,38 +570,165 @@ const PncForm = ({ patient, onClose }) => {
     const availableVisits = getAvailableVisits();
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">PNC Visit Number *</label>
-                <select
-                    value={data.visit_number}
-                    onChange={(e) => setData('visit_number', e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                    required
-                >
-                    <option value="">Select Visit</option>
-                    {availableVisits.map((v) => (
-                        <option key={v} value={v}>PNC Visit {v}</option>
+        <form onSubmit={handleSubmit} className="space-y-6 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">PNC Visit Number *</label>
+                    <select value={data.visit_number} onChange={(e) => setData('visit_number', e.target.value)} className="w-full border rounded-lg p-3" required>
+                        <option value="">Select Visit</option>
+                        {availableVisits.map((v) => (<option key={v} value={v}>PNC Visit {v}</option>))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Visit Date *</label>
+                    <input type="date" value={data.visit_date} onChange={(e) => setData('visit_date', e.target.value)} className="w-full border rounded-lg p-3" required />
+                </div>
+            </div>
+
+            <div className="bg-purple-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-purple-800 mb-3">Postnatal Clinic Attendance</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Attendance Timing</label>
+                        <select value={data.attendance_timing} onChange={(e) => setData('attendance_timing', e.target.value)} className="w-full border rounded-lg p-2">
+                            <option value="">Select</option>
+                            <option value="12hrs">Within 12 hours</option>
+                            <option value="next_day">Next Day (N)</option>
+                            <option value="12_before">12 hours before (12b)</option>
+                            <option value="regular">Regular (R)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Associated Problems</label>
+                        <input type="text" value={data.associated_problems} onChange={(e) => setData('associated_problems', e.target.value)} className="w-full border rounded-lg p-2" placeholder="Any complications" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mother Visit Timing</label>
+                        <select value={data.mother_visit_timing} onChange={(e) => setData('mother_visit_timing', e.target.value)} className="w-full border rounded-lg p-2">
+                            <option value="">Select</option>
+                            <option value="2-3_days">2-3 days</option>
+                            <option value="4-7_days">4-7 days</option>
+                            <option value="gt_7_days">&gt;7 days</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Newborn Visit Timing</label>
+                        <select value={data.newborn_visit_timing} onChange={(e) => setData('newborn_visit_timing', e.target.value)} className="w-full border rounded-lg p-2">
+                            <option value="">Select</option>
+                            <option value="2-3_days">2-3 days</option>
+                            <option value="4-7_days">4-7 days</option>
+                            <option value="gt_7_days">&gt;7 days</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-pink-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-pink-800 mb-3">Maternal Care - Counselling</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                        { key: 'breastfeeding_counseling', label: 'Breastfeeding' },
+                        { key: 'nutrition_counseling', label: 'Nutrition' },
+                        { key: 'family_planning_counseling', label: 'Family Planning' },
+                        { key: 'cord_care_counseling', label: 'Cord Care' },
+                    ].map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-2 p-2 border rounded bg-white cursor-pointer hover:bg-pink-100">
+                            <input type="checkbox" checked={data[key]} onChange={(e) => setData(key, e.target.checked)} className="w-4 h-4 text-pink-600" />
+                            <span className="text-sm">{label}</span>
+                        </label>
                     ))}
-                </select>
+                </div>
             </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Visit Date *</label>
-                <input
-                    type="date"
-                    value={data.visit_date}
-                    onChange={(e) => setData('visit_date', e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                    required
-                />
+            <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-blue-800 mb-3">Maternal Care - Services</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                        { key: 'temperature_check', label: 'Temperature' },
+                        { key: 'blood_pressure_check', label: 'Blood Pressure' },
+                        { key: 'pv_examination', label: 'PV Examination' },
+                        { key: 'breast_examination', label: 'Breast Exam' },
+                        { key: 'anemia_check', label: 'Anemia Check' },
+                        { key: 'iron_folate_given', label: 'Iron/Folate' },
+                        { key: 'vitamin_a_given', label: 'Vitamin A' },
+                    ].map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-2 p-2 border rounded bg-white cursor-pointer hover:bg-blue-100">
+                            <input type="checkbox" checked={data[key]} onChange={(e) => setData(key, e.target.checked)} className="w-4 h-4 text-blue-600" />
+                            <span className="text-sm">{label}</span>
+                        </label>
+                    ))}
+                </div>
             </div>
 
-            <button
-                type="submit"
-                disabled={processing || availableVisits.length === 0}
-                className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50"
-            >
+            <div className="bg-teal-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-teal-800 mb-3">Newborn Care</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {[
+                        { key: 'newborn_temp_check', label: 'Temperature' },
+                        { key: 'newborn_weight_check', label: 'Weight' },
+                        { key: 'newborn_cord_check', label: 'Cord Check' },
+                        { key: 'newborn_skin_check', label: 'Skin Check' },
+                        { key: 'newborn_eye_check', label: 'Eye Check' },
+                        { key: 'newborn_feeding_check', label: 'Feeding Check' },
+                    ].map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-2 p-2 border rounded bg-white cursor-pointer hover:bg-teal-100">
+                            <input type="checkbox" checked={data[key]} onChange={(e) => setData(key, e.target.checked)} className="w-4 h-4 text-teal-600" />
+                            <span className="text-sm">{label}</span>
+                        </label>
+                    ))}
+                </div>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Neonatal Complications</label>
+                        <select value={data.neonatal_complications} onChange={(e) => setData('neonatal_complications', e.target.value)} className="w-full border rounded-lg p-2">
+                            <option value="">None</option>
+                            <option value="sepsis">Sepsis</option>
+                            <option value="jaundice">Jaundice</option>
+                            <option value="hypothermia">Hypothermia</option>
+                            <option value="asphyxia">Asphyxia</option>
+                            <option value="low_birth_weight">Low Birth Weight</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <label className="flex items-center gap-2 p-2 border rounded bg-white cursor-pointer hover:bg-teal-100">
+                        <input type="checkbox" checked={data.kmc_initiated} onChange={(e) => setData('kmc_initiated', e.target.checked)} className="w-4 h-4 text-teal-600" />
+                        <span className="text-sm font-medium">KMC Initiated (Kangaroo Mother Care)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div className="bg-yellow-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-yellow-800 mb-3">Outcome of Visit</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Outcome</label>
+                        <select value={data.outcome} onChange={(e) => setData('outcome', e.target.value)} className="w-full border rounded-lg p-2">
+                            <option value="">Select</option>
+                            <option value="NT">Not Treated (NT)</option>
+                            <option value="T">Treated (T)</option>
+                            <option value="A">Admitted (A)</option>
+                        </select>
+                    </div>
+                    <label className="flex items-center gap-2 p-3 border rounded bg-white cursor-pointer hover:bg-yellow-100">
+                        <input type="checkbox" checked={data.referred_out} onChange={(e) => setData('referred_out', e.target.checked)} className="w-4 h-4 text-yellow-600" />
+                        <span className="text-sm font-medium">Referred Out (RD)</span>
+                    </label>
+                    {data.referred_out && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Transportation</label>
+                            <select value={data.transportation_out} onChange={(e) => setData('transportation_out', e.target.value)} className="w-full border rounded-lg p-2">
+                                <option value="">Select</option>
+                                <option value="ambulance">Ambulance</option>
+                                <option value="private">Private Vehicle</option>
+                                <option value="public">Public Transport</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <button type="submit" disabled={processing || availableVisits.length === 0} className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50">
                 {processing ? 'Saving...' : 'Record PNC Visit'}
             </button>
         </form>
