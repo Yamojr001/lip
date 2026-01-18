@@ -307,6 +307,14 @@ export default function EditPatient() {
         ward_id: patient.ward_id || "",
         health_facility_id: patient.health_facility_id || "",
         
+        // Vital Signs
+        blood_pressure: patient.blood_pressure || "",
+        weight_kg: patient.weight_kg || "",
+        height_cm: patient.height_cm || "",
+        blood_group: patient.blood_group || "",
+        blood_level: patient.blood_level || "",
+        preferred_language: patient.preferred_language || "",
+        
         // Medical Details - ADDED age_of_pregnancy_weeks
         gravida: patient.gravida || "",
         age_of_pregnancy_weeks: patient.age_of_pregnancy_weeks || "", // NEW FIELD
@@ -772,6 +780,74 @@ export default function EditPatient() {
                         <option value="">Health Facility *</option>
                         {facilitiesInWard.map(f => <option key={f.id} value={f.id}>{f.clinic_name}</option>)}
                         {!facilitiesInWard.length && data.ward_id && <option disabled>No facilities found</option>}
+                    </select>
+                </InputSection>
+                
+                {/* Vital Signs */}
+                <InputSection title="Vital Signs">
+                    <DebouncedInput 
+                      type="text" 
+                      placeholder="Blood Pressure (e.g., 120/80)" 
+                      value={data.blood_pressure}
+                      onDebouncedChange={(value) => setData('blood_pressure', value)}
+                    />
+                    
+                    <DebouncedInput 
+                      type="number" 
+                      placeholder="Weight (kg)" 
+                      value={data.weight_kg}
+                      onDebouncedChange={(value) => setData('weight_kg', value)}
+                      step="0.1"
+                      min="30"
+                      max="200"
+                    />
+                    
+                    <DebouncedInput 
+                      type="number" 
+                      placeholder="Height (cm)" 
+                      value={data.height_cm}
+                      onDebouncedChange={(value) => setData('height_cm', value)}
+                      step="0.1"
+                      min="100"
+                      max="220"
+                    />
+                    
+                    <select 
+                      value={data.blood_group} 
+                      onChange={(e) => setData('blood_group', e.target.value)} 
+                      className={selectClass}
+                    >
+                        <option value="">Blood Group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                    </select>
+                    
+                    <DebouncedInput 
+                      type="number" 
+                      placeholder="Blood Level (g/dL)" 
+                      value={data.blood_level}
+                      onDebouncedChange={(value) => setData('blood_level', value)}
+                      step="0.1"
+                      min="5"
+                      max="20"
+                    />
+                    
+                    <select 
+                      value={data.preferred_language} 
+                      onChange={(e) => setData('preferred_language', e.target.value)} 
+                      className={selectClass}
+                    >
+                        <option value="">Preferred Language</option>
+                        <option value="Hausa">Hausa</option>
+                        <option value="English">English</option>
+                        <option value="Yoruba">Yoruba</option>
+                        <option value="Other">Other</option>
                     </select>
                 </InputSection>
                 

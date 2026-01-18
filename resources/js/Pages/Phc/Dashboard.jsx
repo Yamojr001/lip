@@ -73,7 +73,28 @@ const AncProgressBar = ({ patient }) => {
 export default function PhcDashboard() {
   const { patients = { data: [] }, auth, phcStats = null } = usePage().props;
   const results = patients?.data || [];
-  const { totalPatients = 0, delivered = 0, facilityDeliveries = 0, liveBirths = 0, facilityDeliveryRate = 0, monthlyRegistrations = {}, activePregnancies = 0, ancVisitsBreakdown = {}, pregnancyTracking = {} } = phcStats || {};
+  const { 
+    totalPatients = 0, 
+    delivered = 0, 
+    facilityDeliveries = 0, 
+    liveBirths = 0, 
+    stillbirths = 0,
+    facilityDeliveryRate = 0, 
+    monthlyRegistrations = {}, 
+    activePregnancies = 0, 
+    ancVisitsBreakdown = {}, 
+    pregnancyTracking = {},
+    pncVisitCompletion = {},
+    pncIncomplete = 0,
+    fpUptakeRate = 0,
+    totalFpUsers = 0,
+    fpMethodsUsage = {},
+    deliveryOutcomes = {},
+    deliveryTypeDistribution = {},
+    immunizationCoverageDetails = {},
+    hivTestOutcomes = {},
+    ancServiceCounts = {}
+  } = phcStats || {};
 
   const monthlyRegChartData = {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
@@ -145,6 +166,120 @@ export default function PhcDashboard() {
         <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
           <h3 className="text-lg font-medium text-gray-900 mb-4">ANC Visit Completion</h3>
           <div className="h-80"><Bar data={anc18CompletionData} options={chartOptions} /></div>
+        </div>
+
+        {/* Additional Statistics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          <StatCard title="Total Deliveries" value={delivered} color="border-indigo-600" icon={Baby} description="All recorded" />
+          <StatCard title="Stillbirths" value={stillbirths} color="border-red-600" icon={AlertCircle} description="Adverse outcomes" />
+          <StatCard title="FP Users" value={totalFpUsers} color="border-teal-600" icon={Shield} description={`${fpUptakeRate}% uptake`} />
+          <StatCard title="PNC Incomplete" value={pncIncomplete} color="border-orange-600" icon={Clock} description="Need follow-up" />
+        </div>
+
+        {/* PNC & Immunization Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* PNC Completion */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">PNC Visit Completion</h3>
+            <div className="space-y-4">
+              {[
+                { label: 'PNC Visit 1', count: pncVisitCompletion.pnc1_received || 0, rate: pncVisitCompletion.pnc1_rate || 0, color: 'bg-pink-500' },
+                { label: 'PNC Visit 2', count: pncVisitCompletion.pnc2_received || 0, rate: pncVisitCompletion.pnc2_rate || 0, color: 'bg-pink-400' },
+                { label: 'PNC Visit 3', count: pncVisitCompletion.pnc3_received || 0, rate: pncVisitCompletion.pnc3_rate || 0, color: 'bg-pink-300' },
+              ].map((pnc, idx) => (
+                <div key={idx} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">{pnc.label}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-32 bg-gray-200 rounded-full h-2.5">
+                      <div className={`${pnc.color} h-2.5 rounded-full`} style={{ width: `${Math.min(pnc.rate, 100)}%` }}></div>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700 w-16 text-right">{pnc.count} ({pnc.rate}%)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Family Planning Methods */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Family Planning Methods</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Injectable', key: 'injectable', color: 'bg-blue-100 text-blue-700' },
+                { label: 'Implant', key: 'implant', color: 'bg-green-100 text-green-700' },
+                { label: 'IUD', key: 'iud', color: 'bg-purple-100 text-purple-700' },
+                { label: 'Pill', key: 'pill', color: 'bg-pink-100 text-pink-700' },
+                { label: 'Male Condom', key: 'male_condom', color: 'bg-cyan-100 text-cyan-700' },
+                { label: 'Female Condom', key: 'female_condom', color: 'bg-teal-100 text-teal-700' },
+              ].map((method) => (
+                <div key={method.key} className={`p-3 rounded-lg ${method.color}`}>
+                  <p className="text-sm font-medium">{method.label}</p>
+                  <p className="text-xl font-bold">{fpMethodsUsage[method.key] || 0}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ANC Services & HIV Testing */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* ANC Services */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">ANC Services Provided</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Urinalysis', count: ancServiceCounts.urinalysis || 0, color: 'bg-blue-50 text-blue-700' },
+                { label: 'Iron Folate', count: ancServiceCounts.iron_folate || 0, color: 'bg-green-50 text-green-700' },
+                { label: 'MMS', count: ancServiceCounts.mms || 0, color: 'bg-yellow-50 text-yellow-700' },
+                { label: 'SP', count: ancServiceCounts.sp || 0, color: 'bg-purple-50 text-purple-700' },
+                { label: 'SBA', count: ancServiceCounts.sba || 0, color: 'bg-pink-50 text-pink-700' },
+              ].map((svc, idx) => (
+                <div key={idx} className={`p-3 rounded-lg text-center ${svc.color}`}>
+                  <p className="text-sm">{svc.label}</p>
+                  <p className="text-2xl font-bold">{svc.count}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* HIV Testing */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">HIV Test Outcomes</h3>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="p-4 bg-red-50 rounded-lg">
+                <p className="text-3xl font-bold text-red-600">{hivTestOutcomes.Positive || 0}</p>
+                <p className="text-sm text-red-700">Positive</p>
+              </div>
+              <div className="p-4 bg-green-50 rounded-lg">
+                <p className="text-3xl font-bold text-green-600">{hivTestOutcomes.Negative || 0}</p>
+                <p className="text-sm text-green-700">Negative</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-3xl font-bold text-gray-600">{hivTestOutcomes.NotTested || 0}</p>
+                <p className="text-sm text-gray-700">Not Tested</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Immunization Coverage */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Immunization Coverage</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {[
+              { label: 'BCG', key: 'bcg', color: 'bg-blue-100 text-blue-700' },
+              { label: 'OPV 0', key: 'opv0', color: 'bg-green-100 text-green-700' },
+              { label: 'Penta 1', key: 'penta1', color: 'bg-purple-100 text-purple-700' },
+              { label: 'Penta 3', key: 'penta3', color: 'bg-pink-100 text-pink-700' },
+              { label: 'Measles', key: 'measles', color: 'bg-yellow-100 text-yellow-700' },
+              { label: 'MCV 2', key: 'mcv2', color: 'bg-orange-100 text-orange-700' },
+            ].map((vaccine) => (
+              <div key={vaccine.key} className={`p-3 rounded-lg text-center ${vaccine.color}`}>
+                <p className="text-sm font-medium">{vaccine.label}</p>
+                <p className="text-2xl font-bold">{immunizationCoverageDetails[vaccine.key] || 0}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
