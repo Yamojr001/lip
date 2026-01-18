@@ -571,6 +571,11 @@ class Patient extends Model
         return false;
     }
 
+    public function familyPlanningVisits()
+    {
+        return $this->hasMany(FamilyPlanningVisit::class)->orderBy('visit_date', 'desc');
+    }
+
     // --- NEW METHOD: Get ANC visit schedule with next dates ---
     public function getAncVisitScheduleAttribute()
     {

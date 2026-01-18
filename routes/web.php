@@ -84,6 +84,7 @@ Route::middleware(['auth', 'verified', 'role:phc_staff'])
         Route::post('/patient/{id}/delivery', [PhcStaffController::class, 'addDelivery'])->name('patient.delivery.store');
         Route::post('/patient/{id}/pnc', [PhcStaffController::class, 'addPnc'])->name('patient.pnc.store');
         Route::post('/patient/{id}/fp', [PhcStaffController::class, 'addFamilyPlanning'])->name('patient.fp.store');
+        Route::delete('/patient/{id}/fp/{visitId}', [PhcStaffController::class, 'deleteFamilyPlanningVisit'])->name('patient.fp.delete');
 
         Route::get('/children', [ChildController::class, 'index'])->name('children.index');
         Route::get('/children/create', [ChildController::class, 'create'])->name('children.create');

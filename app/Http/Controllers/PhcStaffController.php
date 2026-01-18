@@ -7,6 +7,7 @@ use App\Models\Lga;
 use App\Models\Ward;
 use App\Models\Phc;
 use App\Models\VaccineAccountabilityReport;
+use App\Models\FamilyPlanningVisit;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -1488,7 +1489,7 @@ class PhcStaffController extends Controller
 
     public function patientDashboard($id)
     {
-        $patient = Patient::with(['lga', 'ward', 'phc', 'children.nutritionLogs'])->findOrFail($id);
+        $patient = Patient::with(['lga', 'ward', 'phc', 'children.nutritionLogs', 'familyPlanningVisits'])->findOrFail($id);
         
         return Inertia::render('Phc/PatientDashboard', [
             'patient' => $patient,
@@ -1577,22 +1578,71 @@ class PhcStaffController extends Controller
     public function addFamilyPlanning(Request $request, $id)
     {
         $patient = Patient::findOrFail($id);
+        $user = auth()->user();
         
         $validated = $request->validate([
-            'fp_using' => 'boolean',
-            'fp_male_condom' => 'boolean',
-            'fp_female_condom' => 'boolean',
-            'fp_pill' => 'boolean',
-            'fp_injectable' => 'boolean',
-            'fp_implant' => 'boolean',
-            'fp_iud' => 'boolean',
-            'fp_other' => 'boolean',
-            'fp_other_specify' => 'nullable|string|max:255',
+            'visit_date' => 'required|date',
+            'client_card_number' => 'nullable|string|max:50',
+            'sex' => 'nullable|in:Male,Female',
+            'marital_status' => 'nullable|in:Single,Married,Divorced,Widowed',
+            'acceptor_type' => 'required|in:New,Revisit',
+            'blood_pressure' => 'nullable|string|max:20',
+            'oral_pills' => 'boolean',
+            'oral_pills_type' => 'nullable|string|max:50',
+            'oral_pills_status' => 'nullable|in:New,RV',
+            'oral_pills_cycles' => 'nullable|integer|min:0',
+            'injectable' => 'boolean',
+            'injectable_type' => 'nullable|string|max:50',
+            'injectable_status' => 'nullable|in:New,RV',
+            'injectable_doses' => 'nullable|integer|min:0',
+            'iud' => 'boolean',
+            'iud_status' => 'nullable|in:New,RV',
+            'iud_action' => 'nullable|in:Insertion,Removal',
+            'condoms' => 'boolean',
+            'condoms_type' => 'nullable|in:Male,Female,Both',
+            'condoms_direction' => 'nullable|in:IN,OUT',
+            'condoms_quantity' => 'nullable|integer|min:0',
+            'implants' => 'boolean',
+            'implants_type' => 'nullable|string|max:50',
+            'implants_direction' => 'nullable|in:IN,OUT',
+            'voluntary_sterilization' => 'boolean',
+            'sterilization_type' => 'nullable|in:Male,Female',
+            'natural_methods' => 'boolean',
+            'cycle_beads' => 'boolean',
+            'natural_method_other' => 'nullable|string|max:100',
+            'referred' => 'boolean',
+            'referred_to' => 'nullable|string|max:200',
+            'notes' => 'nullable|string',
         ]);
 
-        $patient->update($validated);
+        $age = $patient->age ?? 0;
+        $ageRange = null;
+        $ranges = ['10-14', '15-19', '20-24', '25-29', '30-34', '35-39', '40-44', '45-49'];
+        foreach ($ranges as $range) {
+            [$min, $max] = explode('-', $range);
+            if ($age >= (int)$min && $age <= (int)$max) {
+                $ageRange = $range;
+                break;
+            }
+        }
 
-        return redirect()->back()->with('success', 'Family planning information updated successfully!');
+        $validated['patient_id'] = $patient->id;
+        $validated['phc_id'] = $user->phc_id;
+        $validated['age_range'] = $ageRange;
+
+        FamilyPlanningVisit::create($validated);
+
+        $patient->update(['fp_using' => true]);
+
+        return redirect()->back()->with('success', 'Family planning visit recorded successfully!');
+    }
+
+    public function deleteFamilyPlanningVisit($id, $visitId)
+    {
+        $visit = FamilyPlanningVisit::where('patient_id', $id)->findOrFail($visitId);
+        $visit->delete();
+        
+        return redirect()->back()->with('success', 'Family planning visit deleted successfully!');
     }
 
     /**

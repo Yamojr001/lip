@@ -368,16 +368,42 @@ const PncForm = ({ patient, onClose }) => {
 };
 
 const FamilyPlanningForm = ({ patient, onClose }) => {
-    const { data, setData, post, processing } = useForm({
-        fp_using: patient.fp_using || false,
-        fp_male_condom: patient.fp_male_condom || false,
-        fp_female_condom: patient.fp_female_condom || false,
-        fp_pill: patient.fp_pill || false,
-        fp_injectable: patient.fp_injectable || false,
-        fp_implant: patient.fp_implant || false,
-        fp_iud: patient.fp_iud || false,
-        fp_other: patient.fp_other || false,
-        fp_other_specify: patient.fp_other_specify || '',
+    const { t } = useTranslation();
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data, setData, post, processing, errors } = useForm({
+        visit_date: today,
+        client_card_number: patient.unique_id || '',
+        sex: 'Female',
+        marital_status: '',
+        acceptor_type: 'New',
+        blood_pressure: '',
+        oral_pills: false,
+        oral_pills_type: '',
+        oral_pills_status: '',
+        oral_pills_cycles: '',
+        injectable: false,
+        injectable_type: '',
+        injectable_status: '',
+        injectable_doses: '',
+        iud: false,
+        iud_status: '',
+        iud_action: '',
+        condoms: false,
+        condoms_type: '',
+        condoms_direction: '',
+        condoms_quantity: '',
+        implants: false,
+        implants_type: '',
+        implants_direction: '',
+        voluntary_sterilization: false,
+        sterilization_type: '',
+        natural_methods: false,
+        cycle_beads: false,
+        natural_method_other: '',
+        referred: false,
+        referred_to: '',
+        notes: '',
     });
 
     const handleSubmit = (e) => {
@@ -388,55 +414,194 @@ const FamilyPlanningForm = ({ patient, onClose }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <label className="flex items-center gap-3 p-3 border rounded-lg bg-emerald-50">
-                <input
-                    type="checkbox"
-                    checked={data.fp_using}
-                    onChange={(e) => setData('fp_using', e.target.checked)}
-                    className="w-5 h-5"
-                />
-                <span className="font-medium">Currently using Family Planning</span>
-            </label>
-
-            <div className="grid grid-cols-2 gap-3">
-                {[
-                    { key: 'fp_male_condom', label: 'Male Condom' },
-                    { key: 'fp_female_condom', label: 'Female Condom' },
-                    { key: 'fp_pill', label: 'Pill' },
-                    { key: 'fp_injectable', label: 'Injectable' },
-                    { key: 'fp_implant', label: 'Implant' },
-                    { key: 'fp_iud', label: 'IUD' },
-                    { key: 'fp_other', label: 'Other' },
-                ].map(({ key, label }) => (
-                    <label key={key} className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input
-                            type="checkbox"
-                            checked={data[key]}
-                            onChange={(e) => setData(key, e.target.checked)}
-                            className="w-5 h-5"
-                        />
-                        <span>{label}</span>
-                    </label>
-                ))}
+        <form onSubmit={handleSubmit} className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+            <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-blue-800 mb-3">Visit Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Visit Date *</label>
+                        <input type="date" value={data.visit_date} onChange={(e) => setData('visit_date', e.target.value)} className="w-full border rounded-lg p-2" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Client Card No.</label>
+                        <input type="text" value={data.client_card_number} onChange={(e) => setData('client_card_number', e.target.value)} className="w-full border rounded-lg p-2" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                        <select value={data.marital_status} onChange={(e) => setData('marital_status', e.target.value)} className="w-full border rounded-lg p-2">
+                            <option value="">Select...</option>
+                            <option value="Single">Single</option>
+                            <option value="Married">Married</option>
+                            <option value="Divorced">Divorced</option>
+                            <option value="Widowed">Widowed</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Acceptor Type *</label>
+                        <select value={data.acceptor_type} onChange={(e) => setData('acceptor_type', e.target.value)} className="w-full border rounded-lg p-2" required>
+                            <option value="New">New Acceptor</option>
+                            <option value="Revisit">Revisit</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Blood Pressure</label>
+                        <input type="text" placeholder="e.g., 120/80" value={data.blood_pressure} onChange={(e) => setData('blood_pressure', e.target.value)} className="w-full border rounded-lg p-2" />
+                    </div>
+                </div>
             </div>
 
-            {data.fp_other && (
-                <input
-                    type="text"
-                    placeholder="Specify other method"
-                    value={data.fp_other_specify}
-                    onChange={(e) => setData('fp_other_specify', e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                />
-            )}
+            <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-green-800 mb-3">Contraceptive Methods</h4>
+                
+                <div className="space-y-4">
+                    <div className="border-b pb-3">
+                        <label className="flex items-center gap-2 mb-2">
+                            <input type="checkbox" checked={data.oral_pills} onChange={(e) => setData('oral_pills', e.target.checked)} className="w-4 h-4" />
+                            <span className="font-medium">Oral Pills</span>
+                        </label>
+                        {data.oral_pills && (
+                            <div className="grid grid-cols-3 gap-2 ml-6">
+                                <input type="text" placeholder="Type of Pills" value={data.oral_pills_type} onChange={(e) => setData('oral_pills_type', e.target.value)} className="border rounded p-2 text-sm" />
+                                <select value={data.oral_pills_status} onChange={(e) => setData('oral_pills_status', e.target.value)} className="border rounded p-2 text-sm">
+                                    <option value="">Status</option>
+                                    <option value="New">New</option>
+                                    <option value="RV">Revisit</option>
+                                </select>
+                                <input type="number" placeholder="Cycles" value={data.oral_pills_cycles} onChange={(e) => setData('oral_pills_cycles', e.target.value)} className="border rounded p-2 text-sm" min="0" />
+                            </div>
+                        )}
+                    </div>
 
-            <button
-                type="submit"
-                disabled={processing}
-                className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-50"
-            >
-                {processing ? 'Saving...' : 'Update Family Planning'}
+                    <div className="border-b pb-3">
+                        <label className="flex items-center gap-2 mb-2">
+                            <input type="checkbox" checked={data.injectable} onChange={(e) => setData('injectable', e.target.checked)} className="w-4 h-4" />
+                            <span className="font-medium">Injectable</span>
+                        </label>
+                        {data.injectable && (
+                            <div className="grid grid-cols-3 gap-2 ml-6">
+                                <input type="text" placeholder="Type" value={data.injectable_type} onChange={(e) => setData('injectable_type', e.target.value)} className="border rounded p-2 text-sm" />
+                                <select value={data.injectable_status} onChange={(e) => setData('injectable_status', e.target.value)} className="border rounded p-2 text-sm">
+                                    <option value="">Status</option>
+                                    <option value="New">New</option>
+                                    <option value="RV">Revisit</option>
+                                </select>
+                                <input type="number" placeholder="Doses" value={data.injectable_doses} onChange={(e) => setData('injectable_doses', e.target.value)} className="border rounded p-2 text-sm" min="0" />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border-b pb-3">
+                        <label className="flex items-center gap-2 mb-2">
+                            <input type="checkbox" checked={data.iud} onChange={(e) => setData('iud', e.target.checked)} className="w-4 h-4" />
+                            <span className="font-medium">IUDs</span>
+                        </label>
+                        {data.iud && (
+                            <div className="grid grid-cols-2 gap-2 ml-6">
+                                <select value={data.iud_status} onChange={(e) => setData('iud_status', e.target.value)} className="border rounded p-2 text-sm">
+                                    <option value="">Status</option>
+                                    <option value="New">New</option>
+                                    <option value="RV">Revisit</option>
+                                </select>
+                                <select value={data.iud_action} onChange={(e) => setData('iud_action', e.target.value)} className="border rounded p-2 text-sm">
+                                    <option value="">Action</option>
+                                    <option value="Insertion">Insertion</option>
+                                    <option value="Removal">Removal</option>
+                                </select>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border-b pb-3">
+                        <label className="flex items-center gap-2 mb-2">
+                            <input type="checkbox" checked={data.condoms} onChange={(e) => setData('condoms', e.target.checked)} className="w-4 h-4" />
+                            <span className="font-medium">Condoms</span>
+                        </label>
+                        {data.condoms && (
+                            <div className="grid grid-cols-3 gap-2 ml-6">
+                                <select value={data.condoms_type} onChange={(e) => setData('condoms_type', e.target.value)} className="border rounded p-2 text-sm">
+                                    <option value="">Type</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Both">Both</option>
+                                </select>
+                                <select value={data.condoms_direction} onChange={(e) => setData('condoms_direction', e.target.value)} className="border rounded p-2 text-sm">
+                                    <option value="">IN/OUT</option>
+                                    <option value="IN">IN</option>
+                                    <option value="OUT">OUT</option>
+                                </select>
+                                <input type="number" placeholder="Quantity" value={data.condoms_quantity} onChange={(e) => setData('condoms_quantity', e.target.value)} className="border rounded p-2 text-sm" min="0" />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border-b pb-3">
+                        <label className="flex items-center gap-2 mb-2">
+                            <input type="checkbox" checked={data.implants} onChange={(e) => setData('implants', e.target.checked)} className="w-4 h-4" />
+                            <span className="font-medium">Implants</span>
+                        </label>
+                        {data.implants && (
+                            <div className="grid grid-cols-2 gap-2 ml-6">
+                                <input type="text" placeholder="Type" value={data.implants_type} onChange={(e) => setData('implants_type', e.target.value)} className="border rounded p-2 text-sm" />
+                                <select value={data.implants_direction} onChange={(e) => setData('implants_direction', e.target.value)} className="border rounded p-2 text-sm">
+                                    <option value="">IN/OUT</option>
+                                    <option value="IN">IN (Insertion)</option>
+                                    <option value="OUT">OUT (Removal)</option>
+                                </select>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border-b pb-3">
+                        <label className="flex items-center gap-2 mb-2">
+                            <input type="checkbox" checked={data.voluntary_sterilization} onChange={(e) => setData('voluntary_sterilization', e.target.checked)} className="w-4 h-4" />
+                            <span className="font-medium">Voluntary Sterilization</span>
+                        </label>
+                        {data.voluntary_sterilization && (
+                            <div className="ml-6">
+                                <select value={data.sterilization_type} onChange={(e) => setData('sterilization_type', e.target.value)} className="border rounded p-2 text-sm w-full">
+                                    <option value="">Select Type</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border-b pb-3">
+                        <label className="flex items-center gap-2 mb-2">
+                            <input type="checkbox" checked={data.natural_methods} onChange={(e) => setData('natural_methods', e.target.checked)} className="w-4 h-4" />
+                            <span className="font-medium">Natural Methods</span>
+                        </label>
+                        {data.natural_methods && (
+                            <div className="ml-6 space-y-2">
+                                <label className="flex items-center gap-2">
+                                    <input type="checkbox" checked={data.cycle_beads} onChange={(e) => setData('cycle_beads', e.target.checked)} className="w-4 h-4" />
+                                    <span className="text-sm">Cycle Beads</span>
+                                </label>
+                                <input type="text" placeholder="Other natural method" value={data.natural_method_other} onChange={(e) => setData('natural_method_other', e.target.value)} className="border rounded p-2 text-sm w-full" />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-yellow-50 p-4 rounded-lg">
+                <label className="flex items-center gap-2 mb-2">
+                    <input type="checkbox" checked={data.referred} onChange={(e) => setData('referred', e.target.checked)} className="w-4 h-4" />
+                    <span className="font-medium">Referred</span>
+                </label>
+                {data.referred && (
+                    <input type="text" placeholder="Referred to..." value={data.referred_to} onChange={(e) => setData('referred_to', e.target.value)} className="w-full border rounded p-2 text-sm" />
+                )}
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea value={data.notes} onChange={(e) => setData('notes', e.target.value)} className="w-full border rounded-lg p-2" rows="2" placeholder="Additional notes..."></textarea>
+            </div>
+
+            <button type="submit" disabled={processing} className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-50">
+                {processing ? 'Saving...' : 'Record Family Planning Visit'}
             </button>
         </form>
     );
