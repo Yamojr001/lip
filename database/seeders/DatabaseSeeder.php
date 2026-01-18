@@ -15,7 +15,7 @@ class DatabaseSeeder extends Seeder
             // LgaSeeder::class,
             // WardSeeder::class,
             // PhcSeeder::class,
-            // UserSeeder::class,
+            UserSeeder::class,
             PatientSeeder::class,
         ]);
     }
