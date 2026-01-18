@@ -11,7 +11,8 @@ import {
   FileText,
   Search,
   Apple,
-  Package, // Add this import
+  Package,
+  Baby,
 } from "lucide-react";
 
 export default function PhcStaffLayout({ children, title = "PHC Dashboard" }) {
@@ -60,9 +61,11 @@ export default function PhcStaffLayout({ children, title = "PHC Dashboard" }) {
 
         <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
           <NavItem href={route('phc.dashboard')} icon={LayoutDashboard} label="Dashboard" />
+          <NavItem href={route('phc.search')} icon={Search} label="Find Patient" />
+          <NavItem href={route('phc.create-patient')} icon={UserPlus} label="Register Patient" />
+          <NavItem href={route('phc.children.index')} icon={Baby} label="Children" />
           <NavItem href={route('phc.records')} icon={FileText} label="My Records" />
-          <NavItem href={route('phc.all-patients')} icon={Search} label="Search All Patients" />
-          <NavItem href={route('phc.create-patient')} icon={UserPlus} label="Create New Patient" />
+          <NavItem href={route('phc.all-patients')} icon={ClipboardList} label="All Patients" />
           
           {/* New Vaccine Accountability Menu Item */}
           <NavItem href={route('phc.vaccine-accountability')} icon={Package} label="Vaccine Accountability" />

@@ -310,6 +310,11 @@ class Patient extends Model
         return $this->belongsTo(Phc::class, 'phc_id');
     }
 
+    public function children()
+    {
+        return $this->hasMany(Child::class);
+    }
+
     // --- AUTO-CALCULATION LOGIC ---
     public static function boot()
     {

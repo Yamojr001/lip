@@ -556,7 +556,7 @@ export default function AdminVaccineStatistics({
                                     <td className="px-4 py-3">Times vaccines were out of stock</td>
                                 </tr>
                                 <tr className="bg-gray-50">
-                                    <td className="px-4 py-3 font-medium">High Wastage Reports (>10%)</td>
+                                    <td className="px-4 py-3 font-medium">High Wastage Reports (&gt;10%)</td>
                                     <td className="px-4 py-3">{statistics.high_wastage_reports || 0}</td>
                                     <td className="px-4 py-3">Reports with wastage rate above 10%</td>
                                 </tr>

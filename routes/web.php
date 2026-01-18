@@ -13,6 +13,7 @@ use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\NutritionReportController;
 use App\Http\Controllers\Admin\AdminVaccineController;
+use App\Http\Controllers\ChildController;
 
 // 🏠 Landing Page
 Route::get('/', function () {
@@ -76,6 +77,23 @@ Route::middleware(['auth', 'verified', 'role:phc_staff'])
         Route::post('/vaccine-accountability/draft', [PhcStaffController::class, 'saveVaccineAccountabilityDraft'])->name('vaccine-accountability.draft');
         Route::get('/vaccine-reports', [PhcStaffController::class, 'vaccineAccountabilityReports'])->name('vaccine-reports.index');
         Route::get('/vaccine-reports/{id}', [PhcStaffController::class, 'showVaccineReport'])->name('vaccine-reports.show');
+
+        Route::get('/search', [PhcStaffController::class, 'patientSearch'])->name('search');
+        Route::get('/patient/{id}/dashboard', [PhcStaffController::class, 'patientDashboard'])->name('patient.dashboard');
+        Route::post('/patient/{id}/anc', [PhcStaffController::class, 'addAnc'])->name('patient.anc.store');
+        Route::post('/patient/{id}/delivery', [PhcStaffController::class, 'addDelivery'])->name('patient.delivery.store');
+        Route::post('/patient/{id}/pnc', [PhcStaffController::class, 'addPnc'])->name('patient.pnc.store');
+        Route::post('/patient/{id}/fp', [PhcStaffController::class, 'addFamilyPlanning'])->name('patient.fp.store');
+
+        Route::get('/children', [ChildController::class, 'index'])->name('children.index');
+        Route::get('/children/create', [ChildController::class, 'create'])->name('children.create');
+        Route::post('/children', [ChildController::class, 'store'])->name('children.store');
+        Route::get('/children/{child}', [ChildController::class, 'show'])->name('children.show');
+        Route::get('/children/{child}/edit', [ChildController::class, 'edit'])->name('children.edit');
+        Route::patch('/children/{child}', [ChildController::class, 'update'])->name('children.update');
+        Route::post('/children/{child}/immunization', [ChildController::class, 'addImmunization'])->name('children.immunization.store');
+        Route::post('/children/{child}/nutrition', [ChildController::class, 'addNutritionLog'])->name('children.nutrition.store');
+        Route::get('/children/{child}/nutrition-logs', [ChildController::class, 'nutritionLogs'])->name('children.nutrition.logs');
     });
 
 // 🧑‍💼 ADMIN ROUTES

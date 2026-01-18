@@ -1453,6 +1453,137 @@ class PhcStaffController extends Controller
         return $request->validate($rules);
     }
 
+    public function patientSearch(Request $request)
+    {
+        $user = auth()->user();
+        $search = $request->input('search');
+        $patients = collect();
+        
+        if ($search && strlen($search) >= 2) {
+            $patients = Patient::query()
+                ->where(function ($q) use ($search) {
+                    $q->where('woman_name', 'ilike', "%{$search}%")
+                        ->orWhere('unique_id', 'ilike', "%{$search}%")
+                        ->orWhere('phone_number', 'ilike', "%{$search}%");
+                })
+                ->with(['lga', 'ward', 'phc'])
+                ->limit(20)
+                ->get();
+        }
+
+        return Inertia::render('Phc/PatientSearch', [
+            'patients' => $patients,
+            'search' => $search,
+        ]);
+    }
+
+    public function patientDashboard($id)
+    {
+        $patient = Patient::with(['lga', 'ward', 'phc', 'children.nutritionLogs'])->findOrFail($id);
+        
+        return Inertia::render('Phc/PatientDashboard', [
+            'patient' => $patient,
+        ]);
+    }
+
+    public function addAnc(Request $request, $id)
+    {
+        $patient = Patient::findOrFail($id);
+        
+        $visitNumber = $patient->anc_visits_count + 1;
+        if ($visitNumber > 8) {
+            return redirect()->back()->with('error', 'Maximum 8 ANC visits allowed.');
+        }
+        
+        $validated = $request->validate([
+            'visit_date' => 'required|date|before_or_equal:today',
+            'urinalysis' => 'boolean',
+            'iron_folate' => 'boolean',
+            'mms' => 'boolean',
+            'sp' => 'boolean',
+            'sba' => 'boolean',
+            'hiv_test' => 'nullable|in:Yes,No',
+            'hiv_result_received' => 'boolean',
+            'hiv_result' => 'nullable|in:Positive,Negative',
+            'paid' => 'boolean',
+            'payment_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        $updateData = [
+            "anc_visit_{$visitNumber}_date" => $validated['visit_date'],
+            "anc{$visitNumber}_urinalysis" => $validated['urinalysis'] ?? false,
+            "anc{$visitNumber}_iron_folate" => $validated['iron_folate'] ?? false,
+            "anc{$visitNumber}_mms" => $validated['mms'] ?? false,
+            "anc{$visitNumber}_sp" => $validated['sp'] ?? false,
+            "anc{$visitNumber}_sba" => $validated['sba'] ?? false,
+            "anc{$visitNumber}_hiv_test" => $validated['hiv_test'] ?? null,
+            "anc{$visitNumber}_hiv_result_received" => $validated['hiv_result_received'] ?? false,
+            "anc{$visitNumber}_hiv_result" => $validated['hiv_result'] ?? null,
+            "anc{$visitNumber}_paid" => $validated['paid'] ?? false,
+            "anc{$visitNumber}_payment_amount" => $validated['payment_amount'] ?? null,
+        ];
+
+        $patient->update($updateData);
+
+        return redirect()->back()->with('success', "ANC Visit {$visitNumber} recorded successfully!");
+    }
+
+    public function addDelivery(Request $request, $id)
+    {
+        $patient = Patient::findOrFail($id);
+        
+        $validated = $request->validate([
+            'date_of_delivery' => 'required|date|before_or_equal:today',
+            'place_of_delivery' => 'required|in:Home,Health Facility,Traditional Attendant',
+            'type_of_delivery' => 'required|in:Normal (Vaginal),Cesarean Section,Assisted,Breech',
+            'delivery_outcome' => 'required|in:Live birth,Stillbirth,Miscarriage',
+            'complication_if_any' => 'nullable|in:No complication,Hemorrhage,Eclampsia,Sepsis,Other',
+            'mother_alive' => 'required|in:Yes,No',
+            'mother_status' => 'required|in:Admitted,Referred to other facility,Discharged home',
+            'delivery_kits_received' => 'boolean',
+        ]);
+
+        $patient->update($validated);
+
+        return redirect()->back()->with('success', 'Delivery information recorded successfully!');
+    }
+
+    public function addPnc(Request $request, $id)
+    {
+        $patient = Patient::findOrFail($id);
+        
+        $validated = $request->validate([
+            'visit_number' => 'required|in:1,2,3',
+            'visit_date' => 'required|date|before_or_equal:today',
+        ]);
+
+        $pncField = "pnc_visit_{$validated['visit_number']}";
+        $patient->update([$pncField => $validated['visit_date']]);
+
+        return redirect()->back()->with('success', "PNC Visit {$validated['visit_number']} recorded successfully!");
+    }
+
+    public function addFamilyPlanning(Request $request, $id)
+    {
+        $patient = Patient::findOrFail($id);
+        
+        $validated = $request->validate([
+            'fp_using' => 'boolean',
+            'fp_male_condom' => 'boolean',
+            'fp_female_condom' => 'boolean',
+            'fp_pill' => 'boolean',
+            'fp_injectable' => 'boolean',
+            'fp_implant' => 'boolean',
+            'fp_iud' => 'boolean',
+            'fp_other' => 'boolean',
+            'fp_other_specify' => 'nullable|string|max:255',
+        ]);
+
+        $patient->update($validated);
+
+        return redirect()->back()->with('success', 'Family planning information updated successfully!');
+    }
+
     /**
      * Convert boolean fields.
      * @param array $data
