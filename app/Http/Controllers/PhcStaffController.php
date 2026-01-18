@@ -29,7 +29,7 @@ class PhcStaffController extends Controller
                 ->with('error', 'Your account is not associated with any PHC facility. Please contact administrator.');
         }
 
-        $lgas = Lga::all(['id', 'name', 'code']);
+        $lgas = Lga::orderBy('name', 'asc')->get(['id', 'name', 'code']);
         $wards = Ward::all(['id', 'lga_id', 'name', 'code']);
         $phcFacilities = Phc::all(['id', 'ward_id', 'clinic_name']);
 

@@ -15,6 +15,7 @@ export default function RegisterPatient({ lgas, wards, phcFacilities }) {
         community: "",
         lga_id: "",
         ward_id: "",
+        health_facility_id: "",
         gravida: "",
         parity: "",
         age_of_pregnancy_weeks: "",
@@ -58,11 +59,12 @@ export default function RegisterPatient({ lgas, wards, phcFacilities }) {
                                         <input type="number" value={data.age} onChange={e => setData('age', e.target.value)} className="w-full border-gray-300 rounded-lg" required />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Literacy *</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Literacy Status *</label>
                                         <select value={data.literacy_status} onChange={e => setData('literacy_status', e.target.value)} className="w-full border-gray-300 rounded-lg" required>
                                             <option value="">Select</option>
                                             <option value="Literate">Literate</option>
-                                            <option value="Non-literate">Non-literate</option>
+                                            <option value="Illiterate">Illiterate</option>
+                                            <option value="Not sure">Not sure</option>
                                         </select>
                                     </div>
                                 </div>
@@ -71,8 +73,21 @@ export default function RegisterPatient({ lgas, wards, phcFacilities }) {
                                     <input type="tel" value={data.phone_number} onChange={e => setData('phone_number', e.target.value)} className="w-full border-gray-300 rounded-lg" required />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Husband's Name</label>
-                                    <input type="text" value={data.husband_name} onChange={e => setData('husband_name', e.target.value)} className="w-full border-gray-300 rounded-lg" />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Husband's Phone</label>
+                                    <input type="tel" value={data.husband_phone} onChange={e => setData('husband_phone', e.target.value)} className="w-full border-gray-300 rounded-lg" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Community *</label>
+                                    <input type="text" value={data.community} onChange={e => setData('community', e.target.value)} className="w-full border-gray-300 rounded-lg" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Health Facility *</label>
+                                    <select value={data.health_facility_id} onChange={e => setData('health_facility_id', e.target.value)} className="w-full border-gray-300 rounded-lg" required>
+                                        <option value="">Select Facility</option>
+                                        {phcFacilities.filter(f => f.ward_id === parseInt(data.ward_id)).map(phc => (
+                                            <option key={phc.id} value={phc.id}>{phc.clinic_name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -116,7 +131,25 @@ export default function RegisterPatient({ lgas, wards, phcFacilities }) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Pregnancy Age (Weeks) *</label>
-                                    <input type="number" value={data.age_of_pregnancy_weeks} onChange={e => setData('age_of_pregnancy_weeks', e.target.value)} className="w-full border-gray-300 rounded-lg" required />
+                                    <input 
+                                        type="number" 
+                                        value={data.age_of_pregnancy_weeks} 
+                                        onChange={e => {
+                                            const weeks = e.target.value;
+                                            setData('age_of_pregnancy_weeks', weeks);
+                                            if (weeks && weeks > 0) {
+                                                const eddDate = new Date();
+                                                eddDate.setDate(eddDate.getDate() + (40 - weeks) * 7);
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    age_of_pregnancy_weeks: weeks,
+                                                    edd: eddDate.toISOString().split('T')[0]
+                                                }));
+                                            }
+                                        }} 
+                                        className="w-full border-gray-300 rounded-lg" 
+                                        required 
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Registration Date *</label>
