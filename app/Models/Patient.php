@@ -14,52 +14,55 @@ class Patient extends Model
         // --- Core Info and Foreign Keys ---
         'unique_id',
         'woman_name', 'age', 'literacy_status', 'phone_number', 'husband_name', 'husband_phone',
-        'community', 'address',
+        'community', 'address', 'preferred_language',
 
         'ward_id', 'lga_id', 'health_facility_id', 'phc_id',
 
         // --- Medical Info ---
         'gravida', 'age_of_pregnancy_weeks', 'parity', 'date_of_registration', 'edd', 'fp_interest',
+        
+        // --- Vital Signs ---
+        'blood_pressure', 'weight_kg', 'height_cm', 'blood_group', 'blood_level',
 
         // --- ANC Visits 1-8 with comprehensive tracking (INCLUDING NEXT VISIT DATE) ---
         // Visit 1
         'anc_visit_1_date', 'anc_visit_1_next_date', 'tracked_before_anc1', 'anc1_paid', 'anc1_payment_amount',
-        'anc1_urinalysis', 'anc1_iron_folate', 'anc1_mms', 'anc1_sp', 'anc1_sba',
+        'anc1_urinalysis', 'anc1_iron_folate', 'anc1_mms', 'anc1_sp', 'anc1_pcv', 'anc1_td',
         'anc1_hiv_test', 'anc1_hiv_result_received', 'anc1_hiv_result',
         
         // Visit 2
         'anc_visit_2_date', 'anc_visit_2_next_date', 'tracked_before_anc2', 'anc2_paid', 'anc2_payment_amount',
-        'anc2_urinalysis', 'anc2_iron_folate', 'anc2_mms', 'anc2_sp', 'anc2_sba',
+        'anc2_urinalysis', 'anc2_iron_folate', 'anc2_mms', 'anc2_sp', 'anc2_pcv', 'anc2_td',
         'anc2_hiv_test', 'anc2_hiv_result_received', 'anc2_hiv_result',
         
         // Visit 3
         'anc_visit_3_date', 'anc_visit_3_next_date', 'tracked_before_anc3', 'anc3_paid', 'anc3_payment_amount',
-        'anc3_urinalysis', 'anc3_iron_folate', 'anc3_mms', 'anc3_sp', 'anc3_sba',
+        'anc3_urinalysis', 'anc3_iron_folate', 'anc3_mms', 'anc3_sp', 'anc3_pcv', 'anc3_td',
         'anc3_hiv_test', 'anc3_hiv_result_received', 'anc3_hiv_result',
         
         // Visit 4
         'anc_visit_4_date', 'anc_visit_4_next_date', 'tracked_before_anc4', 'anc4_paid', 'anc4_payment_amount',
-        'anc4_urinalysis', 'anc4_iron_folate', 'anc4_mms', 'anc4_sp', 'anc4_sba',
+        'anc4_urinalysis', 'anc4_iron_folate', 'anc4_mms', 'anc4_sp', 'anc4_pcv', 'anc4_td',
         'anc4_hiv_test', 'anc4_hiv_result_received', 'anc4_hiv_result',
         
         // Visit 5
         'anc_visit_5_date', 'anc_visit_5_next_date', 'tracked_before_anc5', 'anc5_paid', 'anc5_payment_amount',
-        'anc5_urinalysis', 'anc5_iron_folate', 'anc5_mms', 'anc5_sp', 'anc5_sba',
+        'anc5_urinalysis', 'anc5_iron_folate', 'anc5_mms', 'anc5_sp', 'anc5_pcv', 'anc5_td',
         'anc5_hiv_test', 'anc5_hiv_result_received', 'anc5_hiv_result',
         
         // Visit 6
         'anc_visit_6_date', 'anc_visit_6_next_date', 'tracked_before_anc6', 'anc6_paid', 'anc6_payment_amount',
-        'anc6_urinalysis', 'anc6_iron_folate', 'anc6_mms', 'anc6_sp', 'anc6_sba',
+        'anc6_urinalysis', 'anc6_iron_folate', 'anc6_mms', 'anc6_sp', 'anc6_pcv', 'anc6_td',
         'anc6_hiv_test', 'anc6_hiv_result_received', 'anc6_hiv_result',
         
         // Visit 7
         'anc_visit_7_date', 'anc_visit_7_next_date', 'tracked_before_anc7', 'anc7_paid', 'anc7_payment_amount',
-        'anc7_urinalysis', 'anc7_iron_folate', 'anc7_mms', 'anc7_sp', 'anc7_sba',
+        'anc7_urinalysis', 'anc7_iron_folate', 'anc7_mms', 'anc7_sp', 'anc7_pcv', 'anc7_td',
         'anc7_hiv_test', 'anc7_hiv_result_received', 'anc7_hiv_result',
         
         // Visit 8
         'anc_visit_8_date', 'anc_visit_8_next_date', 'tracked_before_anc8', 'anc8_paid', 'anc8_payment_amount',
-        'anc8_urinalysis', 'anc8_iron_folate', 'anc8_mms', 'anc8_sp', 'anc8_sba',
+        'anc8_urinalysis', 'anc8_iron_folate', 'anc8_mms', 'anc8_sp', 'anc8_pcv', 'anc8_td',
         'anc8_hiv_test', 'anc8_hiv_result_received', 'anc8_hiv_result',
 
         'additional_anc_count',

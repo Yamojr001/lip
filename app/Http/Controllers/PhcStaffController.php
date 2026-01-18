@@ -1359,28 +1359,37 @@ class PhcStaffController extends Controller
             // Personal Information
             'woman_name' => 'required|string|max:255',
             'age' => 'required|integer|between:15,50',
-            'literacy_status' => 'required|in:Literate,Illiterate,Not sure',
-            'phone_number' => 'nullable|string|max:20',
+            'literacy_status' => 'required|in:Literate,Non-literate,Illiterate,Not sure',
+            'phone_number' => 'required|string|max:20',
             'husband_name' => 'nullable|string|max:255',
             'husband_phone' => 'nullable|string|max:20',
-            'community' => 'required|string|max:255',
+            'community' => 'nullable|string|max:255',
             'address' => 'required|string',
             'lga_id' => 'required|exists:lgas,id',
             'ward_id' => 'required|exists:wards,id',
-            'health_facility_id' => 'required|exists:phcs,id',
+            'health_facility_id' => 'nullable|exists:phcs,id',
+            'preferred_language' => 'nullable|string|max:100',
 
             // Medical Information
-            'gravida' => 'nullable|integer|min:0',
-            'parity' => 'nullable|integer|min:0',
+            'gravida' => 'required|integer|min:0',
+            'parity' => 'required|integer|min:0',
+            'age_of_pregnancy_weeks' => 'required|integer|min:1|max:45',
             'date_of_registration' => 'required|date',
             'edd' => 'required|date|after_or_equal:date_of_registration',
-            'fp_interest' => 'nullable|in:Yes,No',
+            'fp_interest' => 'required|in:Yes,No',
+            
+            // Vital Signs (New Fields)
+            'blood_pressure' => 'nullable|string|max:20',
+            'weight_kg' => 'nullable|numeric|min:20|max:200',
+            'height_cm' => 'nullable|numeric|min:100|max:250',
+            'blood_group' => 'nullable|in:A+,A-,B+,B-,AB+,AB-,O+,O-,Unknown',
+            'blood_level' => 'nullable|numeric|min:0|max:20',
 
             // ANC Visits 1-8
             'additional_anc_count' => 'nullable|integer|min:0',
 
-            // Delivery Details
-            'place_of_delivery' => 'nullable|in:Home,Health Facility,Traditional Attendant',
+            // Delivery Details - Disaggregated as per UNICEF
+            'place_of_delivery' => 'nullable|in:Registered Facility,Home,Other Facility,Traditional Attendant',
             'delivery_kits_received' => 'boolean',
             'type_of_delivery' => 'nullable|in:Normal (Vaginal),Cesarean Section,Assisted,Breech',
             'delivery_outcome' => 'nullable|in:Live birth,Stillbirth,Miscarriage',
@@ -1501,7 +1510,8 @@ class PhcStaffController extends Controller
             'iron_folate' => 'boolean',
             'mms' => 'boolean',
             'sp' => 'boolean',
-            'sba' => 'boolean',
+            'pcv' => 'boolean',
+            'td' => 'boolean',
             'hiv_test' => 'nullable|in:Yes,No',
             'hiv_result_received' => 'boolean',
             'hiv_result' => 'nullable|in:Positive,Negative',
@@ -1515,7 +1525,8 @@ class PhcStaffController extends Controller
             "anc{$visitNumber}_iron_folate" => $validated['iron_folate'] ?? false,
             "anc{$visitNumber}_mms" => $validated['mms'] ?? false,
             "anc{$visitNumber}_sp" => $validated['sp'] ?? false,
-            "anc{$visitNumber}_sba" => $validated['sba'] ?? false,
+            "anc{$visitNumber}_pcv" => $validated['pcv'] ?? false,
+            "anc{$visitNumber}_td" => $validated['td'] ?? false,
             "anc{$visitNumber}_hiv_test" => $validated['hiv_test'] ?? null,
             "anc{$visitNumber}_hiv_result_received" => $validated['hiv_result_received'] ?? false,
             "anc{$visitNumber}_hiv_result" => $validated['hiv_result'] ?? null,
@@ -1534,7 +1545,7 @@ class PhcStaffController extends Controller
         
         $validated = $request->validate([
             'date_of_delivery' => 'required|date|before_or_equal:today',
-            'place_of_delivery' => 'required|in:Home,Health Facility,Traditional Attendant',
+            'place_of_delivery' => 'required|in:Registered Facility,Home,Other Facility,Traditional Attendant',
             'type_of_delivery' => 'required|in:Normal (Vaginal),Cesarean Section,Assisted,Breech',
             'delivery_outcome' => 'required|in:Live birth,Stillbirth,Miscarriage',
             'complication_if_any' => 'nullable|in:No complication,Hemorrhage,Eclampsia,Sepsis,Other',

@@ -42,7 +42,8 @@ const AncForm = ({ patient, onClose }) => {
         iron_folate: false,
         mms: false,
         sp: false,
-        sba: false,
+        pcv: false,
+        td: false,
         hiv_test: '',
         hiv_result_received: false,
         hiv_result: '',
@@ -76,7 +77,8 @@ const AncForm = ({ patient, onClose }) => {
                     { key: 'iron_folate', label: 'Iron/Folate' },
                     { key: 'mms', label: 'MMS' },
                     { key: 'sp', label: 'SP' },
-                    { key: 'sba', label: 'SBA' },
+                    { key: 'pcv', label: 'PCV' },
+                    { key: 'td', label: 'TD (Tetanus/Diphtheria)' },
                 ].map(({ key, label }) => (
                     <label key={key} className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                         <input
@@ -201,8 +203,9 @@ const DeliveryForm = ({ patient, onClose }) => {
                     required
                 >
                     <option value="">Select Place</option>
-                    <option value="Health Facility">Health Facility</option>
+                    <option value="Registered Facility">Registered Facility (PHC/Hospital)</option>
                     <option value="Home">Home</option>
+                    <option value="Other Facility">Other Facility</option>
                     <option value="Traditional Attendant">Traditional Attendant</option>
                 </select>
             </div>
@@ -234,7 +237,6 @@ const DeliveryForm = ({ patient, onClose }) => {
                     <option value="">Select Outcome</option>
                     <option value="Live birth">Live birth</option>
                     <option value="Stillbirth">Stillbirth</option>
-                    <option value="Miscarriage">Miscarriage</option>
                 </select>
             </div>
 

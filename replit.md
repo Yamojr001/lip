@@ -46,6 +46,18 @@ Preferred communication style: Simple, everyday language.
 - Hierarchical location structure: LGA → Ward → PHC → Patients
 - Monthly reporting system with filtering by location and time period
 
+## Recent Changes (January 2026)
+
+### UNICEF/Kaduna State PHC Board Compliance Updates
+- **Vital Signs Tracking**: Added blood pressure, weight (kg), height (cm), blood group, and blood level (g/dL) fields to patient registration
+- **Auto-EDD Calculation**: EDD automatically calculated from pregnancy age in weeks using 40-week gestation model
+- **ANC Services Updated**: Replaced SBA with PCV, added TD (Tetanus/Diphtheria) field per current protocols
+- **Delivery Place Disaggregation**: Changed to track Registered Facility, Home, Other Facility, or Traditional Attendant for better reporting
+- **Delivery Outcomes**: Removed Miscarriage option (per UNICEF guidance - miscarriage not a delivery outcome)
+- **Literacy Status**: Options changed to "Yes (Literate)" / "No (Non-literate)" for clearer data collection
+- **Preferred Language**: Added field to capture patient's preferred language for communication
+- **LGAs/Wards Sorted Alphabetically**: For easier navigation in dropdowns
+
 ## External Dependencies
 
 ### PHP Dependencies (Composer)
