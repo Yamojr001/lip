@@ -19,46 +19,46 @@ class Patient extends Model
         'ward_id', 'lga_id', 'health_facility_id', 'phc_id',
 
         // --- Medical Info ---
-        'gravida', 'parity', 'date_of_registration', 'edd', 'fp_interest',
+        'gravida', 'age_of_pregnancy_weeks', 'parity', 'date_of_registration', 'edd', 'fp_interest',
 
-        // --- ANC Visits 1-8 with comprehensive tracking ---
+        // --- ANC Visits 1-8 with comprehensive tracking (INCLUDING NEXT VISIT DATE) ---
         // Visit 1
-        'anc_visit_1_date', 'tracked_before_anc1', 'anc1_paid', 'anc1_payment_amount',
+        'anc_visit_1_date', 'anc_visit_1_next_date', 'tracked_before_anc1', 'anc1_paid', 'anc1_payment_amount',
         'anc1_urinalysis', 'anc1_iron_folate', 'anc1_mms', 'anc1_sp', 'anc1_sba',
         'anc1_hiv_test', 'anc1_hiv_result_received', 'anc1_hiv_result',
         
         // Visit 2
-        'anc_visit_2_date', 'tracked_before_anc2', 'anc2_paid', 'anc2_payment_amount',
+        'anc_visit_2_date', 'anc_visit_2_next_date', 'tracked_before_anc2', 'anc2_paid', 'anc2_payment_amount',
         'anc2_urinalysis', 'anc2_iron_folate', 'anc2_mms', 'anc2_sp', 'anc2_sba',
         'anc2_hiv_test', 'anc2_hiv_result_received', 'anc2_hiv_result',
         
         // Visit 3
-        'anc_visit_3_date', 'tracked_before_anc3', 'anc3_paid', 'anc3_payment_amount',
+        'anc_visit_3_date', 'anc_visit_3_next_date', 'tracked_before_anc3', 'anc3_paid', 'anc3_payment_amount',
         'anc3_urinalysis', 'anc3_iron_folate', 'anc3_mms', 'anc3_sp', 'anc3_sba',
         'anc3_hiv_test', 'anc3_hiv_result_received', 'anc3_hiv_result',
         
         // Visit 4
-        'anc_visit_4_date', 'tracked_before_anc4', 'anc4_paid', 'anc4_payment_amount',
+        'anc_visit_4_date', 'anc_visit_4_next_date', 'tracked_before_anc4', 'anc4_paid', 'anc4_payment_amount',
         'anc4_urinalysis', 'anc4_iron_folate', 'anc4_mms', 'anc4_sp', 'anc4_sba',
         'anc4_hiv_test', 'anc4_hiv_result_received', 'anc4_hiv_result',
         
         // Visit 5
-        'anc_visit_5_date', 'tracked_before_anc5', 'anc5_paid', 'anc5_payment_amount',
+        'anc_visit_5_date', 'anc_visit_5_next_date', 'tracked_before_anc5', 'anc5_paid', 'anc5_payment_amount',
         'anc5_urinalysis', 'anc5_iron_folate', 'anc5_mms', 'anc5_sp', 'anc5_sba',
         'anc5_hiv_test', 'anc5_hiv_result_received', 'anc5_hiv_result',
         
         // Visit 6
-        'anc_visit_6_date', 'tracked_before_anc6', 'anc6_paid', 'anc6_payment_amount',
+        'anc_visit_6_date', 'anc_visit_6_next_date', 'tracked_before_anc6', 'anc6_paid', 'anc6_payment_amount',
         'anc6_urinalysis', 'anc6_iron_folate', 'anc6_mms', 'anc6_sp', 'anc6_sba',
         'anc6_hiv_test', 'anc6_hiv_result_received', 'anc6_hiv_result',
         
         // Visit 7
-        'anc_visit_7_date', 'tracked_before_anc7', 'anc7_paid', 'anc7_payment_amount',
+        'anc_visit_7_date', 'anc_visit_7_next_date', 'tracked_before_anc7', 'anc7_paid', 'anc7_payment_amount',
         'anc7_urinalysis', 'anc7_iron_folate', 'anc7_mms', 'anc7_sp', 'anc7_sba',
         'anc7_hiv_test', 'anc7_hiv_result_received', 'anc7_hiv_result',
         
         // Visit 8
-        'anc_visit_8_date', 'tracked_before_anc8', 'anc8_paid', 'anc8_payment_amount',
+        'anc_visit_8_date', 'anc_visit_8_next_date', 'tracked_before_anc8', 'anc8_paid', 'anc8_payment_amount',
         'anc8_urinalysis', 'anc8_iron_folate', 'anc8_mms', 'anc8_sp', 'anc8_sba',
         'anc8_hiv_test', 'anc8_hiv_result_received', 'anc8_hiv_result',
 
@@ -66,7 +66,8 @@ class Patient extends Model
 
         // --- Delivery Details ---
         'place_of_delivery', 'delivery_kits_received', 'type_of_delivery', 
-        'delivery_outcome', 'date_of_delivery',
+        'complication_if_any', 'delivery_outcome', 'mother_alive', 'mother_status',
+        'date_of_delivery',
 
         // --- Postnatal Checkup (3 visits) ---
         'pnc_visit_1', 'pnc_visit_2', 'pnc_visit_3',
@@ -79,7 +80,7 @@ class Patient extends Model
         'fp_implant', 'fp_iud', 'fp_other', 'fp_other_specify',
 
         // --- Child Immunization ---
-        'child_name', 'child_dob', 'child_gender',
+        'child_name', 'child_dob', 'child_sex',
         
         // Vaccines - At Birth
         'bcg_received', 'bcg_date', 'hep0_received', 'hep0_date', 'opv0_received', 'opv0_date',
@@ -118,6 +119,7 @@ class Patient extends Model
         'phc_id' => 'integer',
         'health_facility_id' => 'integer',
         'age' => 'integer',
+        'age_of_pregnancy_weeks' => 'integer',
         'gravida' => 'integer',
         'parity' => 'integer',
         'additional_anc_count' => 'integer',
@@ -129,15 +131,23 @@ class Patient extends Model
         'date_of_delivery' => 'date',
         'child_dob' => 'date',
         
-        // ANC Visit dates
+        // ANC Visit dates (including NEXT VISIT DATES)
         'anc_visit_1_date' => 'date',
+        'anc_visit_1_next_date' => 'date',
         'anc_visit_2_date' => 'date',
+        'anc_visit_2_next_date' => 'date',
         'anc_visit_3_date' => 'date',
+        'anc_visit_3_next_date' => 'date',
         'anc_visit_4_date' => 'date',
+        'anc_visit_4_next_date' => 'date',
         'anc_visit_5_date' => 'date',
+        'anc_visit_5_next_date' => 'date',
         'anc_visit_6_date' => 'date',
+        'anc_visit_6_next_date' => 'date',
         'anc_visit_7_date' => 'date',
+        'anc_visit_7_next_date' => 'date',
         'anc_visit_8_date' => 'date',
+        'anc_visit_8_next_date' => 'date',
         
         // PNC Visit dates
         'pnc_visit_1' => 'date',
@@ -295,7 +305,7 @@ class Patient extends Model
         return $this->belongsTo(Phc::class, 'health_facility_id');
     }
 
-    public function phcStaff()
+    public function phc()
     {
         return $this->belongsTo(Phc::class, 'phc_id');
     }
@@ -306,12 +316,25 @@ class Patient extends Model
         parent::boot();
 
         static::saving(function ($patient) {
-            // Calculate ANC visits count (1-8)
+            // Auto-calculate next visit dates if visit date exists but next date doesn't
+            for ($i = 1; $i <= 8; $i++) {
+                $visitDateField = "anc_visit_{$i}_date";
+                $nextDateField = "anc_visit_{$i}_next_date";
+                
+                if (!empty($patient->$visitDateField) && empty($patient->$nextDateField)) {
+                    $visitDate = Carbon::parse($patient->$visitDateField);
+                    $nextVisitDate = $visitDate->copy()->addDays(28); // 4 weeks later
+                    $patient->$nextDateField = $nextVisitDate->format('Y-m-d');
+                }
+            }
+            
+            // Calculate ANC visits count (1-8) - consider visits with either date or next date
             $ancDates = [];
             for ($i = 1; $i <= 8; $i++) {
                 $dateField = "anc_visit_{$i}_date";
-                if (!empty($patient->$dateField)) {
-                    $ancDates[] = $patient->$dateField;
+                $nextDateField = "anc_visit_{$i}_next_date";
+                if (!empty($patient->$dateField) || !empty($patient->$nextDateField)) {
+                    $ancDates[] = $patient->$dateField ?? $patient->$nextDateField;
                 }
             }
             
@@ -330,15 +353,31 @@ class Patient extends Model
             $patient->alert = "Up to date";
             $patient->post_edd_followup_status = "On Track";
 
-            if ($edd && $now->gt($edd) && empty($dateOfDelivery)) {
-                $patient->alert = "Follow-up delivery (Overdue)";
-                $patient->post_edd_followup_status = "Missed Follow-up";
-            } elseif (!empty($dateOfDelivery) && !$patient->pnc_completed) {
-                $patient->alert = "Schedule PNC Visits";
-                $patient->post_edd_followup_status = "PNC Pending";
-            } elseif ($patient->anc_visits_count < 4) {
-                $patient->alert = "Needs ANC " . ($patient->anc_visits_count + 1) . " Visit";
-                $patient->post_edd_followup_status = "ANC Incomplete";
+            // Check for upcoming next visit dates
+            $upcomingNextVisit = false;
+            for ($i = 1; $i <= 8; $i++) {
+                $nextDateField = "anc_visit_{$i}_next_date";
+                if (!empty($patient->$nextDateField)) {
+                    $nextDate = Carbon::parse($patient->$nextDateField);
+                    if ($nextDate->isFuture() && $nextDate->diffInDays($now) <= 7) {
+                        $patient->alert = "Upcoming ANC Visit in " . $nextDate->diffInDays($now) . " days";
+                        $upcomingNextVisit = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!$upcomingNextVisit) {
+                if ($edd && $now->gt($edd) && empty($dateOfDelivery)) {
+                    $patient->alert = "Follow-up delivery (Overdue)";
+                    $patient->post_edd_followup_status = "Missed Follow-up";
+                } elseif (!empty($dateOfDelivery) && !$patient->pnc_completed) {
+                    $patient->alert = "Schedule PNC Visits";
+                    $patient->post_edd_followup_status = "PNC Pending";
+                } elseif ($patient->anc_visits_count < 4) {
+                    $patient->alert = "Needs ANC " . ($patient->anc_visits_count + 1) . " Visit";
+                    $patient->post_edd_followup_status = "ANC Incomplete";
+                }
             }
         });
     }
@@ -369,13 +408,15 @@ class Patient extends Model
         return $count;
     }
 
-    // --- ACCESSOR FOR COMPREHENSIVE ANC SERVICES SUMMARY ---
+    // --- ACCESSOR FOR COMPREHENSIVE ANC SERVICES SUMMARY (INCLUDES NEXT VISIT DATE) ---
     public function getAncServicesSummaryAttribute()
     {
         $services = [];
         for ($i = 1; $i <= 8; $i++) {
             $dateField = "anc_visit_{$i}_date";
-            if (!empty($this->$dateField)) {
+            $nextDateField = "anc_visit_{$i}_next_date";
+            
+            if (!empty($this->$dateField) || !empty($this->$nextDateField)) {
                 $visitServices = [];
                 if ($this->{"anc{$i}_urinalysis"}) $visitServices[] = 'Urinalysis';
                 if ($this->{"anc{$i}_iron_folate"}) $visitServices[] = 'Iron Folate';
@@ -383,12 +424,85 @@ class Patient extends Model
                 if ($this->{"anc{$i}_sp"}) $visitServices[] = 'SP';
                 if ($this->{"anc{$i}_sba"}) $visitServices[] = 'SBA';
                 
+                $visitInfo = [];
+                if (!empty($this->$dateField)) {
+                    $visitInfo[] = 'Visit: ' . Carbon::parse($this->$dateField)->format('M d, Y');
+                }
+                if (!empty($this->$nextDateField)) {
+                    $visitInfo[] = 'Next: ' . Carbon::parse($this->$nextDateField)->format('M d, Y');
+                }
                 if (!empty($visitServices)) {
-                    $services["ANC $i"] = implode(', ', $visitServices);
+                    $visitInfo[] = 'Services: ' . implode(', ', $visitServices);
+                }
+                
+                if (!empty($visitInfo)) {
+                    $services["ANC $i"] = implode(' | ', $visitInfo);
                 }
             }
         }
         return $services;
+    }
+
+    // --- ACCESSOR FOR NEXT ANC VISIT DATE (FUTURE DATES) ---
+    public function getNextAncVisitDateAttribute()
+    {
+        $now = Carbon::now();
+        for ($i = 1; $i <= 8; $i++) {
+            $nextDateField = "anc_visit_{$i}_next_date";
+            if (!empty($this->$nextDateField)) {
+                $nextDate = Carbon::parse($this->$nextDateField);
+                if ($nextDate->isFuture()) {
+                    return $this->$nextDateField;
+                }
+            }
+        }
+        return null;
+    }
+
+    // --- ACCESSOR FOR UPCOMING ANC VISIT (WITHIN 7 DAYS) ---
+    public function getUpcomingAncVisitAttribute()
+    {
+        $now = Carbon::now();
+        $upcomingVisits = [];
+        
+        for ($i = 1; $i <= 8; $i++) {
+            $nextDateField = "anc_visit_{$i}_next_date";
+            if (!empty($this->$nextDateField)) {
+                $nextDate = Carbon::parse($this->$nextDateField);
+                if ($nextDate->isFuture() && $nextDate->diffInDays($now) <= 7) {
+                    $upcomingVisits[] = [
+                        'visit_number' => $i,
+                        'date' => $this->$nextDateField,
+                        'days_until' => $nextDate->diffInDays($now),
+                    ];
+                }
+            }
+        }
+        
+        return $upcomingVisits;
+    }
+
+    // --- ACCESSOR FOR MISSED NEXT VISITS (PAST DATES) ---
+    public function getMissedNextVisitsAttribute()
+    {
+        $now = Carbon::now();
+        $missedVisits = [];
+        
+        for ($i = 1; $i <= 8; $i++) {
+            $nextDateField = "anc_visit_{$i}_next_date";
+            if (!empty($this->$nextDateField)) {
+                $nextDate = Carbon::parse($this->$nextDateField);
+                if ($nextDate->isPast()) {
+                    $missedVisits[] = [
+                        'visit_number' => $i,
+                        'date' => $this->$nextDateField,
+                        'days_overdue' => $now->diffInDays($nextDate),
+                    ];
+                }
+            }
+        }
+        
+        return $missedVisits;
     }
 
     // --- ACCESSOR FOR VACCINATION SUMMARY ---
@@ -418,5 +532,68 @@ class Patient extends Model
         }
 
         return $vaccines;
+    }
+
+    // --- NEW METHOD: Calculate if patient is due for next ANC visit ---
+    public function isDueForNextVisit()
+    {
+        $now = Carbon::now();
+        
+        // First, check if there's a scheduled next visit date
+        if ($this->next_anc_visit_date) {
+            $nextDate = Carbon::parse($this->next_anc_visit_date);
+            return $now->greaterThanOrEqualTo($nextDate->subDays(3)); // Due 3 days before scheduled date
+        }
+        
+        // If no scheduled next visit, check last visit date
+        $lastVisitDate = null;
+        for ($i = 8; $i >= 1; $i--) {
+            $dateField = "anc_visit_{$i}_date";
+            if (!empty($this->$dateField)) {
+                $lastVisitDate = Carbon::parse($this->$dateField);
+                break;
+            }
+        }
+        
+        if ($lastVisitDate) {
+            // Check if it's been more than 4 weeks since last visit
+            return $now->diffInDays($lastVisitDate) >= 28;
+        }
+        
+        return false;
+    }
+
+    // --- NEW METHOD: Get ANC visit schedule with next dates ---
+    public function getAncVisitScheduleAttribute()
+    {
+        $schedule = [];
+        $now = Carbon::now();
+        
+        for ($i = 1; $i <= 8; $i++) {
+            $dateField = "anc_visit_{$i}_date";
+            $nextDateField = "anc_visit_{$i}_next_date";
+            
+            $visit = [
+                'number' => $i,
+                'visit_date' => $this->$dateField,
+                'next_date' => $this->$nextDateField,
+                'status' => 'Not Scheduled'
+            ];
+            
+            if (!empty($this->$dateField)) {
+                $visit['status'] = 'Completed';
+            } elseif (!empty($this->$nextDateField)) {
+                $nextDate = Carbon::parse($this->$nextDateField);
+                if ($nextDate->isPast()) {
+                    $visit['status'] = 'Missed';
+                } elseif ($nextDate->isFuture()) {
+                    $visit['status'] = 'Scheduled';
+                }
+            }
+            
+            $schedule[] = $visit;
+        }
+        
+        return $schedule;
     }
 }

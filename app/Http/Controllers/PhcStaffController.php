@@ -6,12 +6,13 @@ use App\Models\Patient;
 use App\Models\Lga;
 use App\Models\Ward;
 use App\Models\Phc;
+use App\Models\VaccineAccountabilityReport;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Collection; // Import Collection for type hinting
+use Illuminate\Database\Eloquent\Collection;
 
 class PhcStaffController extends Controller
 {
@@ -20,6 +21,14 @@ class PhcStaffController extends Controller
      */
     public function create()
     {
+        $user = auth()->user();
+        
+        // Check if user has a PHC
+        if (!$user->phc_id) {
+            return redirect()->route('phc.dashboard')
+                ->with('error', 'Your account is not associated with any PHC facility. Please contact administrator.');
+        }
+
         $lgas = Lga::all(['id', 'name', 'code']);
         $wards = Ward::all(['id', 'lga_id', 'name', 'code']);
         $phcFacilities = Phc::all(['id', 'ward_id', 'clinic_name']);
@@ -85,7 +94,22 @@ class PhcStaffController extends Controller
      */
     public function index(Request $request)
     {
-        $phcId = auth()->user()->phc_id;
+        $user = auth()->user();
+        $phcId = $user->phc_id;
+        
+        // Check if user has a PHC
+        if (!$phcId) {
+            return Inertia::render('Phc/Dashboard', [
+                'patients' => [],
+                'phcStats' => [],
+                'lgas' => [],
+                'wards' => [],
+                'phcFacilities' => [],
+                'filters' => $request->only(['search']),
+                'error' => 'Your account is not associated with any PHC facility. Please contact administrator.'
+            ]);
+        }
+
         $query = Patient::query()->where('phc_id', $phcId);
 
         // Search filter
@@ -106,7 +130,7 @@ class PhcStaffController extends Controller
             });
         }
 
-        // Add dummy 'alert' field for frontend display (dynamic calculation can be added here)
+        // Add dummy 'alert' field for frontend display
         $patients = $query->with(['lga:id,name', 'ward:id,name', 'healthFacility:id,clinic_name'])
                         ->latest()
                         ->paginate(10)
@@ -119,7 +143,7 @@ class PhcStaffController extends Controller
                                 $alert = 'Overdue Delivery';
                             } elseif (!empty($patient->date_of_delivery) && (!$patient->pnc_visit_1 || !$patient->pnc_visit_2 || !$patient->pnc_visit_3)) {
                                 $alert = 'Incomplete PNC';
-                            } elseif ($edd && !$patient->anc_visit_8_date && $edd->subMonths(1)->isPast()) { // If 1 month before EDD and ANC8 not done
+                            } elseif ($edd && !$patient->anc_visit_8_date && $edd->subMonths(1)->isPast()) {
                                 $alert = 'Pending ANC8';
                             }
                             $patient->alert = $alert;
@@ -149,7 +173,21 @@ class PhcStaffController extends Controller
      */
     public function records(Request $request)
     {
-        $phcId = auth()->user()->phc_id;
+        $user = auth()->user();
+        $phcId = $user->phc_id;
+        
+        // Check if user has a PHC
+        if (!$phcId) {
+            return Inertia::render('Phc/MyRecords', [
+                'patients' => [],
+                'filters' => $request->only('search'),
+                'auth' => [
+                    'user' => $user
+                ],
+                'error' => 'Your account is not associated with any PHC facility.'
+            ]);
+        }
+
         $query = Patient::query()->where('phc_id', $phcId);
 
         // Search filter logic
@@ -179,7 +217,7 @@ class PhcStaffController extends Controller
                                 $alert = 'Overdue Delivery';
                             } elseif (!empty($patient->date_of_delivery) && (!$patient->pnc_visit_1 || !$patient->pnc_visit_2 || !$patient->pnc_visit_3)) {
                                 $alert = 'Incomplete PNC';
-                            } elseif ($edd && !$patient->anc_visit_8_date && $edd->subMonths(1)->isPast()) { // If 1 month before EDD and ANC8 not done
+                            } elseif ($edd && !$patient->anc_visit_8_date && $edd->subMonths(1)->isPast()) {
                                 $alert = 'Pending ANC8';
                             }
                             $patient->alert = $alert;
@@ -191,7 +229,7 @@ class PhcStaffController extends Controller
             'patients' => $patients,
             'filters' => $request->only('search'),
             'auth' => [
-                'user' => auth()->user()
+                'user' => $user
             ],
         ]);
     }
@@ -201,7 +239,15 @@ class PhcStaffController extends Controller
      */
     public function show($id)
     {
-        $patient = Patient::where('phc_id', auth()->user()->phc_id)
+        $user = auth()->user();
+        $phcId = $user->phc_id;
+        
+        if (!$phcId) {
+            return redirect()->route('phc.dashboard')
+                ->with('error', 'Your account is not associated with any PHC facility.');
+        }
+
+        $patient = Patient::where('phc_id', $phcId)
                          ->with(['lga:id,name', 'ward:id,name', 'healthFacility:id,clinic_name'])
                          ->findOrFail($id);
         
@@ -215,7 +261,15 @@ class PhcStaffController extends Controller
      */
     public function edit($id)
     {
-        $patient = Patient::where('phc_id', auth()->user()->phc_id)
+        $user = auth()->user();
+        $phcId = $user->phc_id;
+        
+        if (!$phcId) {
+            return redirect()->route('phc.dashboard')
+                ->with('error', 'Your account is not associated with any PHC facility.');
+        }
+
+        $patient = Patient::where('phc_id', $phcId)
                          ->with(['lga', 'ward', 'healthFacility'])
                          ->findOrFail($id);
 
@@ -236,7 +290,15 @@ class PhcStaffController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $patient = Patient::where('phc_id', auth()->user()->phc_id)->findOrFail($id);
+        $user = auth()->user();
+        $phcId = $user->phc_id;
+        
+        if (!$phcId) {
+            return redirect()->route('phc.dashboard')
+                ->with('error', 'Your account is not associated with any PHC facility.');
+        }
+
+        $patient = Patient::where('phc_id', $phcId)->findOrFail($id);
         
         $data = $this->validatePatientData($request, true);
         $data = $this->convertBooleanFields($data);
@@ -251,7 +313,15 @@ class PhcStaffController extends Controller
      */
     public function destroy($id)
     {
-        $patient = Patient::where('phc_id', auth()->user()->phc_id)->findOrFail($id);
+        $user = auth()->user();
+        $phcId = $user->phc_id;
+        
+        if (!$phcId) {
+            return redirect()->route('phc.dashboard')
+                ->with('error', 'Your account is not associated with any PHC facility.');
+        }
+
+        $patient = Patient::where('phc_id', $phcId)->findOrFail($id);
         $patient->delete();
 
         return back()->with('success', 'Patient record deleted successfully!');
@@ -282,7 +352,7 @@ class PhcStaffController extends Controller
             });
         } else {
             // If no search term, return empty results set
-            $query->where('id', 0); // Ensures an empty collection if no search is active
+            $query->where('id', 0);
         }
 
         $patients = $query->latest()->paginate(20)->withQueryString();
@@ -298,10 +368,11 @@ class PhcStaffController extends Controller
      */
     public function showAllPatient($id)
     {
+        $user = auth()->user();
         $patient = Patient::with(['lga:id,name', 'ward:id,name', 'healthFacility:id,clinic_name'])
                          ->findOrFail($id);
 
-        $isCrossFacility = $patient->phc_id != auth()->user()->phc_id;
+        $isCrossFacility = $patient->phc_id != $user->phc_id;
 
         return Inertia::render('Phc/ViewAllPatient', [
             'patient' => $patient,
@@ -314,6 +385,7 @@ class PhcStaffController extends Controller
      */
     public function editAnyPatient($id)
     {
+        $user = auth()->user();
         $patient = Patient::with(['lga', 'ward', 'healthFacility'])
                          ->findOrFail($id);
 
@@ -321,7 +393,7 @@ class PhcStaffController extends Controller
         $wards = Ward::all(['id', 'lga_id', 'name', 'code']);
         $phcFacilities = Phc::all(['id', 'ward_id', 'clinic_name']);
 
-        $isCrossFacility = $patient->phc_id != auth()->user()->phc_id;
+        $isCrossFacility = $patient->phc_id != $user->phc_id;
 
         return Inertia::render('Phc/EditAnyPatient', [
             'patient' => $patient,
@@ -337,15 +409,14 @@ class PhcStaffController extends Controller
      */
     public function updateAnyPatient(Request $request, $id)
     {
+        $user = auth()->user();
         $patient = Patient::findOrFail($id);
         
         $data = $this->validatePatientData($request, true);
         $data = $this->convertBooleanFields($data);
 
-        // If it's a cross-facility edit, ensure 'lga_id', 'ward_id', 'health_facility_id' are not updated.
-        // The original PHC is preserved in the database regardless of the 'health_facility_id' passed,
-        // but frontend prevents changing PHC facility itself.
-        if ($patient->phc_id != auth()->user()->phc_id) {
+        // If it's a cross-facility edit, ensure location fields are not updated
+        if ($patient->phc_id != $user->phc_id) {
             unset($data['lga_id']);
             unset($data['ward_id']);
             unset($data['health_facility_id']);
@@ -361,7 +432,16 @@ class PhcStaffController extends Controller
      */
     public function statistics(Request $request)
     {
-        $phcId = auth()->user()->phc_id;
+        $user = auth()->user();
+        $phcId = $user->phc_id;
+        
+        if (!$phcId) {
+            return Inertia::render('Phc/Statistics', [
+                'phcStats' => [],
+                'filters' => $request->only(['time_range']),
+                'error' => 'Your account is not associated with any PHC facility.'
+            ]);
+        }
         
         // Get comprehensive statistics
         $phcStats = $this->getPhcStatistics($phcId);
@@ -377,7 +457,15 @@ class PhcStaffController extends Controller
      */
     public function generateReport(Request $request)
     {
-        $phcId = auth()->user()->phc_id;
+        $user = auth()->user();
+        $phcId = $user->phc_id;
+        
+        if (!$phcId) {
+            return response()->json([
+                'error' => 'Your account is not associated with any PHC facility.'
+            ], 400);
+        }
+
         $reportType = $request->input('report_type', 'pdf_portrait');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
@@ -393,8 +481,6 @@ class PhcStaffController extends Controller
         $patients = $query->with(['lga', 'ward', 'healthFacility'])->get();
         $stats = $this->getPhcStatistics($phcId);
 
-        // For actual report generation, you'd use a package like Dompdf or Spatie/Laravel-Excel
-        // This is a placeholder for demonstration
         return response()->json([
             'message' => 'Report generation initiated.',
             'report_type' => $reportType,
@@ -402,12 +488,288 @@ class PhcStaffController extends Controller
             'include_details' => $includeDetails,
             'include_statistics' => $includeStatistics,
             'total_records' => $patients->count(),
-            'statistics_snapshot' => $stats, // You might only include specific stats
+            'statistics_snapshot' => $stats,
             'generated_at' => now()->toDateTimeString(),
-            // In a real app, you'd return a redirect to a download route or a direct download.
-            // Example: 'download_url' => route('phc.reports.download', ['type' => $reportType, ...])
         ]);
     }
+
+    /**
+     * =========================================================================
+     * VACCINE ACCOUNTABILITY METHODS
+     * =========================================================================
+     */
+
+    /**
+     * Display vaccine accountability form
+     */
+    public function vaccineAccountability()
+    {
+        $user = auth()->user();
+        
+        // Check if user has a PHC
+        if (!$user->phc_id) {
+            return Inertia::render('Phc/VaccineAccountability', [
+                'auth' => [
+                    'user' => $user,
+                    'phc' => null,
+                ],
+                'existingReport' => null,
+                'currentMonth' => now()->format('F Y'),
+                'recentReports' => [],
+                'error' => 'Your account is not associated with any PHC facility. Please contact administrator.'
+            ]);
+        }
+
+        $currentMonth = now()->format('F Y');
+        
+        // Check if report already exists for current month
+        $existingReport = VaccineAccountabilityReport::where('phc_id', $user->phc_id)
+            ->where('month_year', $currentMonth)
+            ->whereIn('status', ['draft', 'submitted'])
+            ->first();
+
+        // Load PHC with relationships safely
+        $phc = Phc::with(['lga', 'ward'])->find($user->phc_id);
+
+        return Inertia::render('Phc/VaccineAccountability', [
+            'auth' => [
+                'user' => $user,
+                'phc' => $phc,
+            ],
+            'existingReport' => $existingReport,
+            'currentMonth' => $currentMonth,
+            'recentReports' => VaccineAccountabilityReport::where('phc_id', $user->phc_id)
+                ->whereIn('status', ['submitted', 'approved'])
+                ->orderBy('reporting_date', 'desc')
+                ->limit(5)
+                ->get(),
+        ]);
+    }
+
+    /**
+     * Store vaccine accountability report
+     */
+    public function storeVaccineAccountability(Request $request)
+    {
+        $user = auth()->user();
+        
+        // Check if user has a PHC
+        if (!$user->phc_id) {
+            return redirect()->back()
+                ->with('error', 'Your account is not associated with any PHC facility. Please contact administrator.')
+                ->withInput();
+        }
+
+        // Validate the request
+        $validated = $request->validate([
+            'month_year' => 'required|string|max:20',
+            'reporting_date' => 'required|date',
+            'vaccine_utilization' => 'required|array',
+            'vaccine_utilization.*.name' => 'required|string',
+            'vaccine_utilization.*.max_stock' => 'nullable|integer|min:0',
+            'vaccine_utilization.*.min_stock' => 'nullable|integer|min:0',
+            'vaccine_utilization.*.opening_balance' => 'nullable|integer|min:0',
+            'vaccine_utilization.*.received' => 'nullable|integer|min:0',
+            'vaccine_utilization.*.doses_opened' => 'nullable|integer|min:0',
+            'vaccine_utilization.*.returned' => 'nullable|integer|min:0',
+            'vaccine_utilization.*.stock_out' => 'boolean',
+            
+            'discarded_doses' => 'required|array',
+            'discarded_doses.*.name' => 'required|string',
+            'discarded_doses.*.expiry' => 'nullable|integer|min:0',
+            'discarded_doses.*.breakage' => 'nullable|integer|min:0',
+            'discarded_doses.*.vvm_change' => 'nullable|integer|min:0',
+            'discarded_doses.*.frozen' => 'nullable|integer|min:0',
+            'discarded_doses.*.label_removed' => 'nullable|integer|min:0',
+            
+            'devices_utilization' => 'required|array',
+            'devices_utilization.*.name' => 'required|string',
+            'devices_utilization.*.opening_balance' => 'nullable|integer|min:0',
+            'devices_utilization.*.received' => 'nullable|integer|min:0',
+            'devices_utilization.*.used' => 'nullable|integer|min:0',
+            'devices_utilization.*.ending_balance' => 'nullable|integer|min:0',
+            'devices_utilization.*.returned' => 'nullable|integer|min:0',
+            
+            'device_status' => 'required|array',
+            'device_status.*.name' => 'required|string',
+            'device_status.*.quantity' => 'nullable|integer|min:0',
+            'device_status.*.functional' => 'nullable|integer|min:0',
+            'device_status.*.non_functional' => 'nullable|integer|min:0',
+            
+            'health_officer_name' => 'required|string|max:255',
+            'health_officer_signature' => 'required|string|max:255',
+            'head_of_unit_name' => 'required|string|max:255',
+            'head_of_unit_signature' => 'required|string|max:255',
+            'phone_number' => 'required|string|max:20',
+            'submission_date' => 'required|date',
+        ]);
+
+        try {
+            // Check for existing report for this month
+            $existingReport = VaccineAccountabilityReport::where('phc_id', $user->phc_id)
+                ->where('month_year', $validated['month_year'])
+                ->where('status', 'draft')
+                ->first();
+
+            if ($existingReport) {
+                // Update existing draft
+                $existingReport->update([
+                    ...$validated,
+                    'status' => 'submitted',
+                ]);
+                
+                $message = 'Vaccine accountability report updated and submitted successfully!';
+            } else {
+                // Create new report
+                VaccineAccountabilityReport::create([
+                    ...$validated,
+                    'phc_id' => $user->phc_id,
+                    'user_id' => $user->id,
+                    'status' => 'submitted',
+                ]);
+                
+                $message = 'Vaccine accountability report submitted successfully!';
+            }
+
+            return redirect()->route('phc.vaccine-accountability')
+                ->with('success', $message);
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to submit report: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Save draft vaccine accountability report
+     */
+    public function saveVaccineAccountabilityDraft(Request $request)
+    {
+        $user = auth()->user();
+        
+        // Check if user has a PHC
+        if (!$user->phc_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is not associated with any PHC facility.',
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'month_year' => 'required|string|max:20',
+            'reporting_date' => 'required|date',
+            'vaccine_utilization' => 'required|array',
+            'discarded_doses' => 'required|array',
+            'devices_utilization' => 'required|array',
+            'device_status' => 'required|array',
+            'health_officer_name' => 'nullable|string|max:255',
+            'health_officer_signature' => 'nullable|string|max:255',
+            'head_of_unit_name' => 'nullable|string|max:255',
+            'head_of_unit_signature' => 'nullable|string|max:255',
+            'phone_number' => 'nullable|string|max:20',
+            'submission_date' => 'nullable|date',
+        ]);
+
+        try {
+            // Check for existing draft
+            $existingDraft = VaccineAccountabilityReport::where('phc_id', $user->phc_id)
+                ->where('month_year', $validated['month_year'])
+                ->where('status', 'draft')
+                ->first();
+
+            if ($existingDraft) {
+                $existingDraft->update($validated);
+                $message = 'Draft updated successfully!';
+            } else {
+                VaccineAccountabilityReport::create([
+                    ...$validated,
+                    'phc_id' => $user->phc_id,
+                    'user_id' => $user->id,
+                    'status' => 'draft',
+                ]);
+                $message = 'Draft saved successfully!';
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save draft: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * View vaccine accountability reports
+     */
+    public function vaccineAccountabilityReports()
+    {
+        $user = auth()->user();
+        
+        if (!$user->phc_id) {
+            return Inertia::render('Phc/VaccineReports', [
+                'auth' => [
+                    'user' => $user,
+                    'phc' => null,
+                ],
+                'reports' => [],
+                'filters' => request()->only(['search', 'status', 'month']),
+                'error' => 'Your account is not associated with any PHC facility.'
+            ]);
+        }
+        
+        $reports = VaccineAccountabilityReport::where('phc_id', $user->phc_id)
+            ->orderBy('reporting_date', 'desc')
+            ->paginate(10);
+
+        $phc = Phc::find($user->phc_id);
+
+        return Inertia::render('Phc/VaccineReports', [
+            'auth' => [
+                'user' => $user,
+                'phc' => $phc,
+            ],
+            'reports' => $reports,
+            'filters' => request()->only(['search', 'status', 'month']),
+        ]);
+    }
+
+    /**
+     * Show specific vaccine report
+     */
+    public function showVaccineReport($id)
+    {
+        $user = auth()->user();
+        
+        if (!$user->phc_id) {
+            return redirect()->route('phc.vaccine-accountability')
+                ->with('error', 'Your account is not associated with any PHC facility.');
+        }
+        
+        $report = VaccineAccountabilityReport::where('phc_id', $user->phc_id)
+            ->findOrFail($id);
+
+        $phc = Phc::find($user->phc_id);
+
+        return Inertia::render('Phc/VaccineReportShow', [
+            'auth' => [
+                'user' => $user,
+                'phc' => $phc,
+            ],
+            'report' => $report,
+        ]);
+    }
+
+    /**
+     * =========================================================================
+     * PRIVATE HELPER METHODS
+     * =========================================================================
+     */
 
     /**
      * Get PHC statistics with dynamic trends and all requested breakdowns.
@@ -416,6 +778,10 @@ class PhcStaffController extends Controller
      */
     private function getPhcStatistics($phcId) : array
     {
+        if (!$phcId) {
+            return [];
+        }
+
         // Fetch all patients for the PHC once to work with a collection
         $patients = Patient::where('phc_id', $phcId)->get();
         $totalPatients = $patients->count();
@@ -446,8 +812,8 @@ class PhcStaffController extends Controller
             // Comprehensive breakdowns and aggregated data
             'monthlyRegistrations' => $this->getMonthlyRegistrations($phcId),
             'deliveryOutcomes' => $this->getDeliveryOutcomeDistribution($patients),
-            'ancCompletion' => $this->getAncCompletionStats($patients), // Highest ANC visit completed
-            'ancVisitsBreakdown' => $this->getAncVisitsBreakdown($patients), // Individual ANC visit counts
+            'ancCompletion' => $this->getAncCompletionStats($patients),
+            'ancVisitsBreakdown' => $this->getAncVisitsBreakdown($patients),
             'ancServiceCounts' => $this->getAncServiceCounts($patients),
             'pregnancyTracking' => $this->getPregnancyTrackingStats($patients, $delivered),
             'pncVisitCompletion' => $this->getPncVisitCompletion($patients, $delivered),
@@ -473,6 +839,10 @@ class PhcStaffController extends Controller
      */
     private function calculateTrends($phcId) : array
     {
+        if (!$phcId) {
+            return [];
+        }
+
         $currentMonthStart = Carbon::now()->startOfMonth();
         $lastMonthStart = Carbon::now()->subMonth()->startOfMonth();
         $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
@@ -507,7 +877,7 @@ class PhcStaffController extends Controller
 
         // Helper for percentage change
         $getChange = function ($current, $last) {
-            if ($last == 0) return $current > 0 ? 100 : 0; // If was 0, now more than 0 -> 100% increase
+            if ($last == 0) return $current > 0 ? 100 : 0;
             return round((($current - $last) / $last) * 100, 1);
         };
         
@@ -522,13 +892,13 @@ class PhcStaffController extends Controller
         $lastDelivered = $lastMonthStats->delivered ?? 0;
         $currentDeliveryRate = $currentTotalPatients > 0 ? ($currentDelivered / $currentTotalPatients) * 100 : 0;
         $lastDeliveryRate = $lastTotalPatients > 0 ? ($lastDelivered / $lastTotalPatients) * 100 : 0;
-        $trends['deliveryRate'] = round($currentDeliveryRate - $lastDeliveryRate, 1); // Absolute change in rate
+        $trends['deliveryRate'] = round($currentDeliveryRate - $lastDeliveryRate, 1);
 
         $currentFacilityDeliveries = $currentMonthStats->facility_deliveries ?? 0;
         $lastFacilityDeliveries = $lastMonthStats->facility_deliveries ?? 0;
         $currentFacilityDeliveryRate = $currentDelivered > 0 ? ($currentFacilityDeliveries / $currentDelivered) * 100 : 0;
         $lastFacilityDeliveryRate = $lastDelivered > 0 ? ($lastFacilityDeliveries / $lastDelivered) * 100 : 0;
-        $trends['facilityDeliveryRate'] = round($currentFacilityDeliveryRate - $lastFacilityDeliveryRate, 1); // Absolute change in rate
+        $trends['facilityDeliveryRate'] = round($currentFacilityDeliveryRate - $lastFacilityDeliveryRate, 1);
 
         $trends['liveBirths'] = $getChange($currentMonthStats->live_births, $lastMonthStats->live_births);
         
@@ -550,8 +920,7 @@ class PhcStaffController extends Controller
         $lastInsuranceRate = $lastTotalPatients > 0 ? ($lastInsured / $lastTotalPatients) * 100 : 0;
         $trends['insuranceEnrollmentRate'] = round($currentInsuranceRate - $lastInsuranceRate, 1);
 
-        // Placeholder for BCG immunization trend - needs more complex logic if calculated for a period
-        $trends['bcgImmunization'] = null; // Or a dummy value like 0 or a small number
+        $trends['bcgImmunization'] = null;
 
         $trends['hivPositiveCases'] = $getChange($this->getHivTestOutcomes(Patient::where('phc_id', $phcId)
                                             ->whereBetween('date_of_registration', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])->get())['Positive'] ?? 0,
@@ -560,7 +929,6 @@ class PhcStaffController extends Controller
 
         return $trends;
     }
-
 
     /**
      * Calculate pregnancy month based on EDD.
@@ -576,17 +944,16 @@ class PhcStaffController extends Controller
         $edd = Carbon::parse($patient->edd);
         $now = Carbon::now();
         
-        $diffInDays = $edd->diffInDays($now, false); // false for absolute difference
+        $diffInDays = $edd->diffInDays($now, false);
 
         // If EDD is in the future, calculate months remaining, then subtract from 9
         if ($diffInDays >= 0) {
             $daysToEdd = $diffInDays;
-            $monthsToEdd = floor($daysToEdd / 30.44); // Average days in a month, floor to get full months
+            $monthsToEdd = floor($daysToEdd / 30.44);
             $month = 9 - $monthsToEdd;
-            return max(1, min(9, (int) $month)); // Ensure it's between 1 and 9
+            return max(1, min(9, (int) $month));
         } else {
-            // If EDD is in the past, pregnancy is considered finished, or overdue
-            return 9; // Max month, indicating due or overdue
+            return 9;
         }
     }
 
@@ -607,7 +974,6 @@ class PhcStaffController extends Controller
             })->count();
         }
         
-        // Sum of additional counts, not just count of patients with > 0 additional_anc_count
         $breakdown['anc5plus'] = $patients->sum('additional_anc_count');
         
         return $breakdown;
@@ -636,9 +1002,6 @@ class PhcStaffController extends Controller
             }
 
             if ($highestAnc > 0) {
-                // If the patient has completed ANC8, count them there.
-                // Otherwise, count them at their highest completed visit.
-                // This logic ensures a patient completing ANC8 isn't also counted in ANC7Only, etc.
                 if ($highestAnc == 8) {
                     $stats['anc8Completed']++;
                 } else {
@@ -699,16 +1062,12 @@ class PhcStaffController extends Controller
             return !$patient->date_of_delivery && $patient->edd && Carbon::parse($patient->edd)->isPast();
         })->count();
 
-        // High-risk pregnancies: Example criteria (e.g., age <18 or >35, or other medical conditions if available)
-        // For demonstration, let's assume a portion of 7/8 month pregnant women are high-risk.
         $highRisk = $patients->filter(function($patient) {
-            // Placeholder for actual high-risk logic
             $age = $patient->age;
             $isOlder = $age && $age >= 35;
             $isYounger = $age && $age <= 18;
             $pregnancyMonth = $this->calculatePregnancyMonth($patient);
             
-            // Example: High risk if very young/old and in late pregnancy stages
             return (!$patient->date_of_delivery && ($isOlder || $isYounger) && ($pregnancyMonth >= 7 && $pregnancyMonth <=9));
         })->count();
 
@@ -797,7 +1156,6 @@ class PhcStaffController extends Controller
      */
     private function getPncIncompleteCount(Collection $patients, int $deliveredCount) : int
     {
-        // A patient has incomplete PNCs if they delivered but at least one of PNC1, PNC2, PNC3 is null
         return $patients->whereNotNull('date_of_delivery')
                         ->filter(function($patient) {
                             return is_null($patient->pnc_visit_1) || is_null($patient->pnc_visit_2) || is_null($patient->pnc_visit_3);
@@ -816,12 +1174,11 @@ class PhcStaffController extends Controller
             'Negative' => 0,
             'Not Tested' => 0,
             'Results Not Received' => 0,
-            'Total Tested' => 0, // Sum of 'Yes' for hiv_test
+            'Total Tested' => 0,
         ];
 
         foreach ($patients as $patient) {
-            // Aggregate across all 8 ANC visits for a patient
-            $patientTested = false; // Track if patient had any HIV test for this aggregation
+            $patientTested = false;
             for ($i = 1; $i <= 8; $i++) {
                 $hivTestField = "anc{$i}_hiv_test";
                 $hivResultReceivedField = "anc{$i}_hiv_result_received";
@@ -842,7 +1199,6 @@ class PhcStaffController extends Controller
                     }
                 }
             }
-            // If a patient was never marked 'Yes' for HIV test across all ANCs, they are 'Not Tested'
             if (!$patientTested) {
                  $outcomes['Not Tested']++;
             }
@@ -873,7 +1229,7 @@ class PhcStaffController extends Controller
                 if ($patient->fp_other) $methods['Other']++;
             }
         }
-        return array_filter($methods); // Remove methods with 0 count
+        return array_filter($methods);
     }
 
     /**
@@ -895,7 +1251,6 @@ class PhcStaffController extends Controller
             if ($patient->health_insurance_status === 'Yes') {
                 $stats['Enrolled']++;
                 if (!empty($patient->insurance_type)) {
-                    // Normalize 'Others' to a specific key if needed, or handle general 'Other' types
                     $stats[$patient->insurance_type] = ($stats[$patient->insurance_type] ?? 0) + 1;
                 }
             } else {
@@ -1019,16 +1374,16 @@ class PhcStaffController extends Controller
             'parity' => 'nullable|integer|min:0',
             'date_of_registration' => 'required|date',
             'edd' => 'required|date|after_or_equal:date_of_registration',
-            'fp_interest' => 'nullable|in:Yes,No', // Removed trailing comma as it's not a list of choices
+            'fp_interest' => 'nullable|in:Yes,No',
 
             // ANC Visits 1-8
             'additional_anc_count' => 'nullable|integer|min:0',
 
             // Delivery Details
-            'place_of_delivery' => 'nullable|in:Home,Health Facility,Traditional Attendant', // Removed trailing comma
+            'place_of_delivery' => 'nullable|in:Home,Health Facility,Traditional Attendant',
             'delivery_kits_received' => 'boolean',
-            'type_of_delivery' => 'nullable|in:Normal (Vaginal),Cesarean Section,Assisted,Breech', // Removed trailing comma
-            'delivery_outcome' => 'nullable|in:Live birth,Stillbirth,Miscarriage', // Removed trailing comma
+            'type_of_delivery' => 'nullable|in:Normal (Vaginal),Cesarean Section,Assisted,Breech',
+            'delivery_outcome' => 'nullable|in:Live birth,Stillbirth,Miscarriage',
             'date_of_delivery' => 'nullable|date',
 
             // Postnatal Checkup
@@ -1037,8 +1392,8 @@ class PhcStaffController extends Controller
             'pnc_visit_3' => 'nullable|date',
 
             // Insurance
-            'health_insurance_status' => 'nullable|in:Yes,No,Not Enrolled', // Removed trailing comma
-            'insurance_type' => 'nullable|in:Kachima,NHIS,Others', // Removed trailing comma
+            'health_insurance_status' => 'nullable|in:Yes,No,Not Enrolled',
+            'insurance_type' => 'nullable|in:Kachima,NHIS,Others',
             'insurance_other_specify' => 'nullable|string|max:255',
             'insurance_satisfaction' => 'boolean',
 
@@ -1056,7 +1411,7 @@ class PhcStaffController extends Controller
             // Child Immunization
             'child_name' => 'nullable|string|max:255',
             'child_dob' => 'nullable|date',
-            'child_gender' => 'nullable|in:Male,Female', // Removed trailing comma
+            'child_gender' => 'nullable|in:Male,Female',
 
             // Notes
             'remark' => 'nullable|string',
@@ -1078,9 +1433,9 @@ class PhcStaffController extends Controller
             $rules["anc{$i}_sba"] = 'boolean';
             
             // HIV Testing
-            $rules["anc{$i}_hiv_test"] = 'nullable|in:Yes,No'; // Removed trailing comma
+            $rules["anc{$i}_hiv_test"] = 'nullable|in:Yes,No';
             $rules["anc{$i}_hiv_result_received"] = 'boolean';
-            $rules["anc{$i}_hiv_result"] = 'nullable|in:Positive,Negative'; // Removed trailing comma
+            $rules["anc{$i}_hiv_result"] = 'nullable|in:Positive,Negative';
         }
 
         // Add vaccine rules

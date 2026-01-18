@@ -341,22 +341,19 @@ export default function ViewPatient() {
                     {/* Medical & Registration Information */}
                     <Section title="Medical & Registration Information" icon={Stethoscope}>
                         <InfoRow label="Gravida (G)" value={patient.gravida} />
+                        <InfoRow label="Age of Pregnancy (weeks)" value={patient.age_of_pregnancy_weeks} />
                         <InfoRow label="Parity (P)" value={patient.parity} />
                         <InfoRow label="Date of Registration" value={formatDate(patient.date_of_registration)} />
                         <InfoRow label="Expected Delivery Date (EDD)" value={formatDate(patient.edd)} />
                         <InfoRow label="Family Planning Interest" value={patient.fp_interest} />
-                    </Section>
-
-                    {/* Health Insurance */}
-                    <Section title="Health Insurance" icon={Shield}>
-                        <InfoRow label="Insurance Status" value={patient.health_insurance_status} />
+                        <InfoRow label="Health Insurance Status" value={patient.health_insurance_status} />
                         {patient.health_insurance_status === "Yes" && (
                             <>
-                                <InfoRow label="Insurance Type" value={patient.insurance_type} />
+                                <InfoRow label="Insurance Provider" value={patient.insurance_type} />
                                 {patient.insurance_type === "Others" && (
                                     <InfoRow label="Other Provider" value={patient.insurance_other_specify} />
                                 )}
-                                <InfoRow label="Satisfied with Insurance" value={formatBoolean(patient.insurance_satisfaction)} />
+                                <InfoRow label="Insurance Satisfaction" value={formatBoolean(patient.insurance_satisfaction)} />
                             </>
                         )}
                     </Section>
@@ -368,7 +365,12 @@ export default function ViewPatient() {
                     <Section title="Delivery Information" icon={Baby}>
                         <InfoRow label="Place of Delivery" value={patient.place_of_delivery} />
                         <InfoRow label="Type of Delivery" value={patient.type_of_delivery} />
+                        <InfoRow label="Complication if any" value={patient.complication_if_any} />
                         <InfoRow label="Delivery Outcome" value={patient.delivery_outcome} />
+                        <InfoRow label="Mother Alive" value={patient.mother_alive} />
+                        {patient.mother_alive === "Yes" && (
+                            <InfoRow label="Mother's Status" value={patient.mother_status} />
+                        )}
                         <InfoRow label="Date of Delivery" value={formatDate(patient.date_of_delivery)} />
                         <InfoRow label="Delivery Kits Received" value={formatBoolean(patient.delivery_kits_received)} />
                     </Section>
@@ -427,7 +429,7 @@ export default function ViewPatient() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         <InfoRow label="Child's Name" value={patient.child_name} />
                         <InfoRow label="Date of Birth" value={formatDate(patient.child_dob)} />
-                        <InfoRow label="Gender" value={patient.child_gender} />
+                        <InfoRow label="Sex" value={patient.child_sex} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

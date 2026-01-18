@@ -22,7 +22,7 @@ return new class extends Migration {
             // Personal & Contact Info
             $table->string('woman_name');
             $table->unsignedTinyInteger('age');
-            $table->enum('literacy_status', ['Literate', 'Illiterate', 'Not sure'])->default('Not sure');
+            $table->enum('literacy_status', ['Literate', 'Not literate'])->default('Literate');
             $table->string('phone_number', 20)->nullable();
             $table->string('husband_name')->nullable();
             $table->string('husband_phone', 20)->nullable();
@@ -31,6 +31,7 @@ return new class extends Migration {
             
             // Pregnancy Info
             $table->unsignedTinyInteger('gravida')->nullable();
+            $table->unsignedTinyInteger('age_of_pregnancy_weeks')->nullable();
             $table->unsignedTinyInteger('parity')->nullable();
             $table->date('date_of_registration');
             $table->date('edd'); // Expected Date of Delivery
@@ -64,7 +65,10 @@ return new class extends Migration {
             $table->enum('place_of_delivery', ['Home', 'Health Facility', 'Traditional Attendant'])->nullable();
             $table->boolean('delivery_kits_received')->default(false);
             $table->enum('type_of_delivery', ['Normal (Vaginal)', 'Cesarean Section', 'Assisted', 'Breech'])->nullable();
+            $table->enum('complication_if_any', ['No complication', 'Hemorrhage', 'Eclampsia', 'Sepsis', 'Other'])->nullable();
             $table->enum('delivery_outcome', ['Live birth', 'Stillbirth', 'Miscarriage'])->nullable();
+            $table->enum('mother_alive', ['Yes', 'No'])->nullable();
+            $table->enum('mother_status', ['Admitted', 'Referred to other facility', 'Discharged home'])->nullable();
             $table->date('date_of_delivery')->nullable();
             
             // Postnatal Checkup (PNC) - Updated to 3 visits
@@ -92,7 +96,7 @@ return new class extends Migration {
             // Child Immunization - New comprehensive structure
             $table->string('child_name')->nullable();
             $table->date('child_dob')->nullable();
-            $table->enum('child_gender', ['Male', 'Female'])->nullable();
+            $table->enum('child_sex', ['Male', 'Female'])->nullable();
             
             // Vaccines - At Birth
             $table->boolean('bcg_received')->default(false);

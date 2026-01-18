@@ -49,6 +49,103 @@ class PatientController extends Controller
     }
 
     /**
+     * Display all patients across facilities for cross-facility editing.
+     */
+    public function allPatients(Request $request)
+    {
+        $query = Patient::query();
+        
+        // Only show patients from the same state as the user's PHC
+        $userPhc = auth()->user()->phc;
+        if ($userPhc) {
+            $query->whereHas('healthFacility.ward.lga.state', function($q) use ($userPhc) {
+                $q->where('id', $userPhc->ward->lga->state_id);
+            });
+        }
+
+        // Search filter
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('woman_name', 'like', "%{$search}%")
+                    ->orWhere('unique_id', 'like', "%{$search}%")
+                    ->orWhere('community', 'like', "%{$search}%")
+                    ->orWhere('phone_number', 'like', "%{$search}%");
+            });
+        }
+
+        $patients = $query->with(['lga:id,name', 'ward:id,name', 'healthFacility:id,clinic_name'])
+                         ->latest()
+                         ->paginate(10);
+
+        return Inertia::render('Phc/AllPatients/Index', [
+            'patients' => $patients,
+            'filters' => $request->only(['search']),
+        ]);
+    }
+
+    /**
+     * View a single patient record for cross-facility access.
+     */
+    public function showAllPatient($id)
+    {
+        $patient = Patient::with(['lga:id,name', 'ward:id,name', 'healthFacility:id,clinic_name'])
+                         ->findOrFail($id);
+        
+        $isCrossFacility = $patient->health_facility_id != auth()->user()->phc_id;
+        
+        return Inertia::render('Phc/AllPatients/View', [
+            'patient' => $patient,
+            'isCrossFacility' => $isCrossFacility
+        ]);
+    }
+
+    /**
+     * Edit a patient record for cross-facility access.
+     */
+    public function editAllPatient($id)
+    {
+        $patient = Patient::findOrFail($id);
+        
+        $isCrossFacility = $patient->health_facility_id != auth()->user()->phc_id;
+        $lgas = Lga::all(['id', 'name']);
+        $wards = Ward::all(['id', 'lga_id', 'name']);
+        $phcFacilities = Phc::all(['id', 'ward_id', 'clinic_name']);
+        
+        return Inertia::render('Phc/AllPatients/Edit', [
+            'patient' => $patient,
+            'lgas' => $lgas,
+            'wards' => $wards,
+            'phcFacilities' => $phcFacilities,
+            'isCrossFacility' => $isCrossFacility
+        ]);
+    }
+
+    /**
+     * Update patient record for cross-facility access.
+     */
+    public function updateAllPatient(Request $request, $id)
+    {
+        $patient = Patient::findOrFail($id);
+        
+        // For cross-facility patients, preserve original facility
+        $isCrossFacility = $patient->health_facility_id != auth()->user()->phc_id;
+        
+        $data = $this->validatePatientData($request, true);
+        
+        // If cross-facility, don't change the original facility
+        if ($isCrossFacility) {
+            $data['health_facility_id'] = $patient->health_facility_id;
+            $data['lga_id'] = $patient->lga_id;
+            $data['ward_id'] = $patient->ward_id;
+        }
+        
+        $data = $this->convertBooleanFields($data);
+        $patient->update($data);
+
+        return back()->with('success', 'Patient updated successfully!');
+    }
+
+    /**
      * Store a new patient record.
      */
     public function store(Request $request)
@@ -89,6 +186,18 @@ class PatientController extends Controller
             // Handle boolean conversions
             $data = $this->convertBooleanFields($data);
 
+            // Auto-calculate next visit dates if not provided
+            for ($i = 1; $i <= 8; $i++) {
+                $visitDateField = "anc_visit_{$i}_date";
+                $nextVisitField = "anc_visit_{$i}_next_date";
+                
+                if (!empty($data[$visitDateField]) && empty($data[$nextVisitField])) {
+                    $visitDate = Carbon::parse($data[$visitDateField]);
+                    $nextVisitDate = $visitDate->copy()->addDays(28); // 4 weeks later
+                    $data[$nextVisitField] = $nextVisitDate->format('Y-m-d');
+                }
+            }
+
             $patient = Patient::create($data);
 
             return redirect()->route('phc.create-patient')
@@ -107,6 +216,25 @@ class PatientController extends Controller
         
         return Inertia::render('Phc/ViewPatient', [
             'patient' => $patient
+        ]);
+    }
+
+    /**
+     * Edit a patient record.
+     */
+    public function edit($id)
+    {
+        $patient = Patient::where('phc_id', auth()->user()->phc_id)->findOrFail($id);
+        
+        $lgas = Lga::all(['id', 'name']);
+        $wards = Ward::all(['id', 'lga_id', 'name']);
+        $phcFacilities = Phc::all(['id', 'ward_id', 'clinic_name']);
+        
+        return Inertia::render('Phc/EditPatient', [
+            'patient' => $patient,
+            'lgas' => $lgas,
+            'wards' => $wards,
+            'phcFacilities' => $phcFacilities
         ]);
     }
 
@@ -145,7 +273,7 @@ class PatientController extends Controller
             // Personal Information
             'woman_name' => 'required|string|max:255',
             'age' => 'required|integer|between:15,50',
-            'literacy_status' => 'required|in:Literate,Illiterate,Not sure',
+            'literacy_status' => 'required|in:Literate,Not literate',
             'phone_number' => 'nullable|string|max:20',
             'husband_name' => 'nullable|string|max:255',
             'husband_phone' => 'nullable|string|max:20',
@@ -157,6 +285,7 @@ class PatientController extends Controller
 
             // Medical Information
             'gravida' => 'nullable|integer|min:0',
+            'age_of_pregnancy_weeks' => 'nullable|integer|min:0|max:45',
             'parity' => 'nullable|integer|min:0',
             'date_of_registration' => 'required|date',
             'edd' => 'required|date|after_or_equal:date_of_registration',
@@ -169,7 +298,10 @@ class PatientController extends Controller
             'place_of_delivery' => 'nullable|in:Home,Health Facility,Traditional Attendant',
             'delivery_kits_received' => 'boolean',
             'type_of_delivery' => 'nullable|in:Normal (Vaginal),Cesarean Section,Assisted,Breech',
+            'complication_if_any' => 'nullable|in:No complication,Hemorrhage,Eclampsia,Sepsis,Other',
             'delivery_outcome' => 'nullable|in:Live birth,Stillbirth,Miscarriage',
+            'mother_alive' => 'nullable|in:Yes,No',
+            'mother_status' => 'nullable|in:Admitted,Referred to other facility,Discharged home',
             'date_of_delivery' => 'nullable|date',
 
             // Postnatal Checkup
@@ -197,16 +329,17 @@ class PatientController extends Controller
             // Child Immunization
             'child_name' => 'nullable|string|max:255',
             'child_dob' => 'nullable|date',
-            'child_gender' => 'nullable|in:Male,Female',
+            'child_sex' => 'nullable|in:Male,Female',
 
             // Notes
             'remark' => 'nullable|string',
             'comments' => 'nullable|string',
         ];
 
-        // Add ANC visit rules for visits 1-8
+        // Add ANC visit rules for visits 1-8 (including next visit date)
         for ($i = 1; $i <= 8; $i++) {
             $rules["anc_visit_{$i}_date"] = 'nullable|date';
+            $rules["anc_visit_{$i}_next_date"] = 'nullable|date|after_or_equal:anc_visit_' . $i . '_date';
             $rules["tracked_before_anc{$i}"] = 'boolean';
             $rules["anc{$i}_paid"] = 'boolean';
             $rules["anc{$i}_payment_amount"] = 'nullable|numeric|min:0';

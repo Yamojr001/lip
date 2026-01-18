@@ -340,11 +340,9 @@ class AdminController extends Controller
             $isYounger = $age && $age <= 18;
             $pregnancyMonth = $this->calculatePregnancyMonth($patient);
             
-            // Example: High risk if very young/old and in late pregnancy stages
             return (!$patient->date_of_delivery && ($isOlder || $isYounger) && ($pregnancyMonth >= 7 && $pregnancyMonth <=9));
         })->count();
 
-        // Calculate pending ANC8 (patients at 8 months pregnant but not completed ANC8)
         $pendingAnc8 = $patients->filter(function($patient) {
             $pregnancyMonth = $this->calculatePregnancyMonth($patient);
             return !$patient->date_of_delivery && $pregnancyMonth >= 8 && (!($patient->anc_visit_8_date) || empty($patient->anc_visit_8_date));
@@ -1595,13 +1593,13 @@ class AdminController extends Controller
             $headerFields = array_merge(
                 ['Unique ID', 'Woman Name', 'Age', 'Literacy Status', 'Phone Number',
                 'Husband Name', 'Husband Phone', 'Community', 'Address',
-                'LGA', 'Ward', 'Health Facility', 'Gravida', 'Parity',
+                'LGA', 'Ward', 'Health Facility', 'Gravida', 'Age of Pregnancy (weeks)', 'Parity',
                 'Registration Date', 'EDD', 'FP Interest'],
                 
                 $ancHeaders,
 
                 // Delivery
-                ['Place of Delivery', 'Delivery Kits Received', 'Type of Delivery', 'Delivery Outcome', 'Date of Delivery'],
+                ['Place of Delivery', 'Delivery Kits Received', 'Type of Delivery', 'Complication if any', 'Delivery Outcome', 'Mother Alive', 'Mother Status', 'Date of Delivery'],
 
                 // Postnatal
                 ['PNC1 Date', 'PNC2 Date', 'PNC3 Date'],
@@ -1614,7 +1612,7 @@ class AdminController extends Controller
                 'FP Implant', 'FP IUD', 'FP Other', 'FP Other Specify'],
 
                 // Child Immunization
-                ['Child Name', 'Child DOB', 'Child Gender'],
+                ['Child Name', 'Child DOB', 'Child Sex'],
                 $vaccineHeaders,
 
                 // Notes
@@ -1629,7 +1627,7 @@ class AdminController extends Controller
                     $patient->unique_id, $patient->woman_name, $patient->age, $patient->literacy_status, $patient->phone_number,
                     $patient->husband_name ?? '', $patient->husband_phone ?? '', $patient->community, $patient->address,
                     $patient->lga->name ?? 'N/A', $patient->ward->name ?? 'N/A', $patient->healthFacility->clinic_name ?? 'N/A',
-                    $patient->gravida ?? '', $patient->parity ?? '',
+                    $patient->gravida ?? '', $patient->age_of_pregnancy_weeks ?? '', $patient->parity ?? '',
                     $patient->date_of_registration, $patient->edd,
                 ];
 
@@ -1655,7 +1653,7 @@ class AdminController extends Controller
                 // Delivery data
                 $rowData = array_merge($rowData, [
                     $patient->place_of_delivery ?? '', $patient->delivery_kits_received ? 'Yes' : 'No',
-                    $patient->type_of_delivery ?? '', $patient->delivery_outcome ?? '', $patient->date_of_delivery ?? '',
+                    $patient->type_of_delivery ?? '', $patient->complication_if_any ?? '', $patient->delivery_outcome ?? '', $patient->mother_alive ?? '', $patient->mother_status ?? '', $patient->date_of_delivery ?? '',
                 ]);
 
                 // PNC data
@@ -1685,7 +1683,7 @@ class AdminController extends Controller
 
                 // Child Immunization data
                 $rowData = array_merge($rowData, [
-                    $patient->child_name ?? '', $patient->child_dob ?? '', $patient->child_gender ?? '',
+                    $patient->child_name ?? '', $patient->child_dob ?? '', $patient->child_sex ?? '',
                 ]);
                 
                 // Vaccine data
@@ -1717,16 +1715,17 @@ class AdminController extends Controller
     {
         $rules = [
             'woman_name' => 'required|string|max:255', 'age' => 'required|integer|between:15,50',
-            'literacy_status' => 'required|in:Literate,Illiterate,Not sure', 'phone_number' => 'nullable|string|max:20',
+            'literacy_status' => 'required|in:Literate,Not literate', 'phone_number' => 'nullable|string|max:20',
             'husband_name' => 'nullable|string|max:255', 'husband_phone' => 'nullable|string|max:20',
             'community' => 'required|string|max:255', 'address' => 'required|string',
             'lga_id' => 'required|exists:lgas,id', 'ward_id' => 'required|exists:wards,id',
             'health_facility_id' => 'required|exists:phcs,id',
-            'gravida' => 'nullable|integer|min:0', 'parity' => 'nullable|integer|min:0',
+            'gravida' => 'nullable|integer|min:0', 'age_of_pregnancy_weeks' => 'nullable|integer|min:0|max:45', 'parity' => 'nullable|integer|min:0',
             'date_of_registration' => 'required|date', 'edd' => 'required|date|after_or_equal:date_of_registration',
             'fp_interest' => 'nullable|in:Yes,No', 'additional_anc_count' => 'nullable|integer|min:0',
             'place_of_delivery' => 'nullable|in:Home,Health Facility,Traditional Attendant', 'delivery_kits_received' => 'boolean',
-            'type_of_delivery' => 'nullable|in:Normal (Vaginal),Cesarean Section,Assisted,Breech', 'delivery_outcome' => 'nullable|in:Live birth,Stillbirth,Miscarriage',
+            'type_of_delivery' => 'nullable|in:Normal (Vaginal),Cesarean Section,Assisted,Breech', 'complication_if_any' => 'nullable|in:No complication,Hemorrhage,Eclampsia,Sepsis,Other', 'delivery_outcome' => 'nullable|in:Live birth,Stillbirth,Miscarriage',
+            'mother_alive' => 'nullable|in:Yes,No', 'mother_status' => 'nullable|in:Admitted,Referred to other facility,Discharged home',
             'date_of_delivery' => 'nullable|date', 'pnc_visit_1' => 'nullable|date', 'pnc_visit_2' => 'nullable|date',
             'pnc_visit_3' => 'nullable|date', 'health_insurance_status' => 'nullable|in:Yes,No,Not Enrolled',
             'insurance_type' => 'nullable|in:Kachima,NHIS,Others', 'insurance_other_specify' => 'nullable|string|max:255',
@@ -1734,7 +1733,7 @@ class AdminController extends Controller
             'fp_female_condom' => 'boolean', 'fp_pill' => 'boolean', 'fp_injectable' => 'boolean',
             'fp_implant' => 'boolean', 'fp_iud' => 'boolean', 'fp_other' => 'boolean',
             'fp_other_specify' => 'nullable|string|max:255', 'child_name' => 'nullable|string|max:255',
-            'child_dob' => 'nullable|date', 'child_gender' => 'nullable|in:Male,Female',
+            'child_dob' => 'nullable|date', 'child_sex' => 'nullable|in:Male,Female',
             'remark' => 'nullable|string', 'comments' => 'nullable|string',
         ];
 

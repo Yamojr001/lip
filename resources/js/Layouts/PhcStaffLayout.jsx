@@ -11,6 +11,7 @@ import {
   FileText,
   Search,
   Apple,
+  Package, // Add this import
 } from "lucide-react";
 
 export default function PhcStaffLayout({ children, title = "PHC Dashboard" }) {
@@ -24,7 +25,7 @@ export default function PhcStaffLayout({ children, title = "PHC Dashboard" }) {
       method={method}
       as={method === "post" ? "button" : "a"}
       className={`flex items-center gap-2 p-2 rounded-xl transition w-full text-left
-        ${url === href
+        ${url.startsWith(href)
           ? "bg-purple-600 text-white"
           : "text-purple-100 hover:bg-purple-600/50"
       }`}
@@ -63,10 +64,14 @@ export default function PhcStaffLayout({ children, title = "PHC Dashboard" }) {
           <NavItem href={route('phc.all-patients')} icon={Search} label="Search All Patients" />
           <NavItem href={route('phc.create-patient')} icon={UserPlus} label="Create New Patient" />
           
+          {/* New Vaccine Accountability Menu Item */}
+          <NavItem href={route('phc.vaccine-accountability')} icon={Package} label="Vaccine Accountability" />
+          
           {/* New Nutrition Reports Menu Item */}
           <NavItem href={route('phc.nutrition.reports.index')} icon={Apple} label="Nutrition Reports" />
           
-          {/* <NavItem href={route('phc.statistics')} icon={BarChart3} label="Statistics" /> */}
+          {/* Optional: View all vaccine reports */}
+          <NavItem href={route('phc.vaccine-reports.index')} icon={ClipboardList} label="Vaccine Reports" />
         </nav>
 
         <div className="p-4 border-t border-purple-500 mt-auto">
@@ -91,7 +96,7 @@ export default function PhcStaffLayout({ children, title = "PHC Dashboard" }) {
           </button>
           <h1 className="text-lg font-semibold text-gray-800">{title}</h1>
           <div className="text-sm text-gray-600 hidden sm:block">
-            PHC Staff Role
+            {auth?.user?.phc?.clinic_name || 'PHC Staff'}
           </div>
         </header>
 

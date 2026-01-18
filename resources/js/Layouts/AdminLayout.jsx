@@ -12,6 +12,7 @@ import {
   FileText,
   Apple,
 } from "lucide-react";
+import { Syringe } from 'lucide-react';
 
 export default function AdminLayout({ children, title = "Dashboard" }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -55,6 +56,8 @@ export default function AdminLayout({ children, title = "Dashboard" }) {
           {/* New Nutrition Reports Menu Item */}
           <NavItem href="/admin/nutrition-reports" icon={Apple} label="Nutrition Reports" />
           <NavItem href="/admin/nutrition-statistics" icon={BarChart3} label="Nutrition Statistics" />
+          <NavItem href="/admin/vaccine-reports" icon={Syringe} label="Vaccine Reports" />
+          <NavItem href="/admin/vaccine-statistics" icon={BarChart3} label="Vaccine Statistics" />
           
           <NavItem href="/admin/manage-locations" icon={MapPin} label="Manage Locations" />
           <NavItem href="/admin/manage-facilities" icon={Hospital} label="Manage Facilities" />

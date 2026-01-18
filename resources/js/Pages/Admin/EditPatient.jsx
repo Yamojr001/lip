@@ -292,12 +292,12 @@ export default function EditPatient() {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [activeAncVisits, setActiveAncVisits] = useState([]);
     
-    // Initialize form data with patient's existing data
+    // Initialize form data with patient's existing data - UPDATED WITH NEW FIELDS
     const { data, setData, patch, processing, errors } = useForm({
         // Personal Information
         woman_name: patient.woman_name || "",
         age: patient.age || "",
-        literacy_status: patient.literacy_status || "Not sure",
+        literacy_status: patient.literacy_status || "", // CHANGED: Updated default value
         phone_number: patient.phone_number || "",
         husband_name: patient.husband_name || "",
         husband_phone: patient.husband_phone || "",
@@ -307,12 +307,14 @@ export default function EditPatient() {
         ward_id: patient.ward_id || "",
         health_facility_id: patient.health_facility_id || "",
         
-        // Medical Details
+        // Medical Details - ADDED age_of_pregnancy_weeks
         gravida: patient.gravida || "",
+        age_of_pregnancy_weeks: patient.age_of_pregnancy_weeks || "", // NEW FIELD
         parity: patient.parity || "",
         date_of_registration: formatDateForInput(patient.date_of_registration),
         edd: formatDateForInput(patient.edd),
         fp_interest: patient.fp_interest || "",
+        health_insurance_status: patient.health_insurance_status || "Not Enrolled", // MOVED from separate section
         
         // ANC Visits (1-8)
         ...Array.from({ length: 8 }, (_, i) => ({
@@ -332,11 +334,14 @@ export default function EditPatient() {
         
         additional_anc_count: patient.additional_anc_count || "",
         
-        // Delivery
+        // Delivery - ADDED NEW FIELDS
         place_of_delivery: patient.place_of_delivery || "",
         delivery_kits_received: !!patient.delivery_kits_received,
         type_of_delivery: patient.type_of_delivery || "",
+        complication_if_any: patient.complication_if_any || "", // NEW FIELD
         delivery_outcome: patient.delivery_outcome || "",
+        mother_alive: patient.mother_alive || "", // NEW FIELD
+        mother_status: patient.mother_status || "", // NEW FIELD
         date_of_delivery: formatDateForInput(patient.date_of_delivery),
         
         // Postnatal
@@ -344,8 +349,7 @@ export default function EditPatient() {
         pnc_visit_2: formatDateForInput(patient.pnc_visit_2),
         pnc_visit_3: formatDateForInput(patient.pnc_visit_3),
         
-        // Insurance
-        health_insurance_status: patient.health_insurance_status || "Not Enrolled",
+        // Insurance - MOVED to Medical section
         insurance_type: patient.insurance_type || "",
         insurance_other_specify: patient.insurance_other_specify || "",
         insurance_satisfaction: !!patient.insurance_satisfaction,
@@ -361,10 +365,10 @@ export default function EditPatient() {
         fp_other: !!patient.fp_other,
         fp_other_specify: patient.fp_other_specify || "",
         
-        // Child Immunization
+        // Child Immunization - CHANGED gender to sex
         child_name: patient.child_name || "",
         child_dob: formatDateForInput(patient.child_dob),
-        child_gender: patient.child_gender || "",
+        child_sex: patient.child_sex || "", // CHANGED FROM child_gender
         bcg_received: !!patient.bcg_received,
         bcg_date: formatDateForInput(patient.bcg_date),
         hep0_received: !!patient.hep0_received,
@@ -695,9 +699,9 @@ export default function EditPatient() {
                       required 
                       className={selectClass}
                     >
-                        <option value="Not sure">Literacy Status *</option>
+                        <option value="">Literacy Status *</option>
                         <option value="Literate">Literate</option>
-                        <option value="Illiterate">Illiterate</option>
+                        <option value="Not literate">Not literate</option>
                     </select>
 
                     <DebouncedInput 
@@ -783,6 +787,15 @@ export default function EditPatient() {
                     
                     <DebouncedInput 
                       type="number" 
+                      placeholder="Age of Pregnancy (weeks)" 
+                      value={data.age_of_pregnancy_weeks}
+                      onDebouncedChange={(value) => setData('age_of_pregnancy_weeks', value)}
+                      min="0" 
+                      max="45"
+                    />
+                    
+                    <DebouncedInput 
+                      type="number" 
                       placeholder="Parity (P)" 
                       value={data.parity}
                       onDebouncedChange={(value) => setData('parity', value)}
@@ -790,7 +803,7 @@ export default function EditPatient() {
                     />
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Date of Registration *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Registration Date *</label>
                       <input 
                         type="date" 
                         value={data.date_of_registration}
@@ -801,7 +814,7 @@ export default function EditPatient() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Expected Date of Delivery (EDD) *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Expected Delivery Date (EDD) *</label>
                       <input 
                         type="date" 
                         value={data.edd}
@@ -820,6 +833,47 @@ export default function EditPatient() {
                         <option value="Yes">Interested</option>
                         <option value="No">Not Interested</option>
                     </select>
+
+                    <select 
+                      value={data.health_insurance_status} 
+                      onChange={(e) => setData('health_insurance_status', e.target.value)} 
+                      className={selectClass}
+                    >
+                        <option value="Not Enrolled">Health Insurance Status</option>
+                        <option value="Yes">Enrolled</option>
+                        <option value="No">Not Enrolled</option>
+                    </select>
+
+                    {data.health_insurance_status === "Yes" && (
+                        <>
+                            <select 
+                              value={data.insurance_type} 
+                              onChange={(e) => setData('insurance_type', e.target.value)} 
+                              className={selectClass}
+                            >
+                                <option value="">Insurance Provider</option>
+                                <option value="Kachima">Kachima</option>
+                                <option value="NHIS">NHIS</option>
+                                <option value="Others">Other</option>
+                            </select>
+
+                            {data.insurance_type === "Others" && (
+                                <DebouncedInput 
+                                  type="text" 
+                                  placeholder="Specify insurance provider"
+                                  value={data.insurance_other_specify}
+                                  onDebouncedChange={(value) => setData('insurance_other_specify', value)}
+                                />
+                            )}
+
+                            <Checkbox 
+                              label="Satisfied with insurance services" 
+                              name="insurance_satisfaction" 
+                              checked={data.insurance_satisfaction}
+                              onChange={(e) => setData('insurance_satisfaction', e.target.checked)} 
+                            />
+                        </>
+                    )}
                 </InputSection>
 
                 {/* ANC Visit Tracking */}
@@ -863,7 +917,7 @@ export default function EditPatient() {
                     </div>
                 </div>
 
-                {/* Delivery Details */}
+                {/* Delivery Details - UPDATED WITH NEW FIELDS */}
                 <InputSection title="Delivery Details">
                     <select 
                       value={data.place_of_delivery} 
@@ -875,6 +929,7 @@ export default function EditPatient() {
                         <option value="Health Facility">Health Facility</option>
                         <option value="Traditional Attendant">Traditional Attendant</option>
                     </select>
+                    
                     <select 
                       value={data.type_of_delivery} 
                       onChange={(e) => setData('type_of_delivery', e.target.value)} 
@@ -886,6 +941,20 @@ export default function EditPatient() {
                         <option value="Assisted">Assisted</option>
                         <option value="Breech">Breech</option>
                     </select>
+                    
+                    <select 
+                      value={data.complication_if_any} 
+                      onChange={(e) => setData('complication_if_any', e.target.value)} 
+                      className={selectClass}
+                    >
+                        <option value="">Complication if any</option>
+                        <option value="No complication">No complication</option>
+                        <option value="Hemorrhage">Hemorrhage</option>
+                        <option value="Eclampsia">Eclampsia</option>
+                        <option value="Sepsis">Sepsis</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    
                     <select 
                       value={data.delivery_outcome} 
                       onChange={(e) => setData('delivery_outcome', e.target.value)} 
@@ -896,6 +965,30 @@ export default function EditPatient() {
                         <option value="Stillbirth">Stillbirth</option>
                         <option value="Miscarriage">Miscarriage</option>
                     </select>
+                    
+                    <select 
+                      value={data.mother_alive} 
+                      onChange={(e) => setData('mother_alive', e.target.value)} 
+                      className={selectClass}
+                    >
+                        <option value="">Mother Alive?</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                    </select>
+                    
+                    {data.mother_alive === "Yes" && (
+                        <select 
+                          value={data.mother_status} 
+                          onChange={(e) => setData('mother_status', e.target.value)} 
+                          className={selectClass}
+                        >
+                            <option value="">Mother's Status</option>
+                            <option value="Admitted">Admitted</option>
+                            <option value="Referred to other facility">Referred to other facility</option>
+                            <option value="Discharged home">Discharged home</option>
+                        </select>
+                    )}
+                    
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Date of Delivery</label>
                       <input 
@@ -905,6 +998,7 @@ export default function EditPatient() {
                         className={inputClass} 
                       />
                     </div>
+                    
                     <Checkbox 
                       label="Received delivery kits" 
                       name="delivery_kits_received" 
@@ -944,50 +1038,6 @@ export default function EditPatient() {
                         className={inputClass} 
                       />
                     </div>
-                </InputSection>
-
-                {/* Health Insurance */}
-                <InputSection title="Health Insurance">
-                    <select 
-                      value={data.health_insurance_status} 
-                      onChange={(e) => setData('health_insurance_status', e.target.value)} 
-                      className={selectClass}
-                    >
-                        <option value="Not Enrolled">Health Insurance Status</option>
-                        <option value="Yes">Enrolled</option>
-                        <option value="No">Not Enrolled</option>
-                    </select>
-
-                    {data.health_insurance_status === "Yes" && (
-                        <>
-                            <select 
-                              value={data.insurance_type} 
-                              onChange={(e) => setData('insurance_type', e.target.value)} 
-                              className={selectClass}
-                            >
-                                <option value="">Insurance Provider</option>
-                                <option value="Kachima">Kachima</option>
-                                <option value="NHIS">NHIS</option>
-                                <option value="Others">Other</option>
-                            </select>
-
-                            {data.insurance_type === "Others" && (
-                                <DebouncedInput 
-                                  type="text" 
-                                  placeholder="Specify insurance provider"
-                                  value={data.insurance_other_specify}
-                                  onDebouncedChange={(value) => setData('insurance_other_specify', value)}
-                                />
-                            )}
-
-                            <Checkbox 
-                              label="Satisfied with insurance services" 
-                              name="insurance_satisfaction" 
-                              checked={data.insurance_satisfaction}
-                              onChange={(e) => setData('insurance_satisfaction', e.target.checked)} 
-                            />
-                        </>
-                    )}
                 </InputSection>
 
                 {/* Family Planning */}
@@ -1050,11 +1100,11 @@ export default function EditPatient() {
                         </div>
                         
                         <select 
-                            value={data.child_gender} 
-                            onChange={(e) => setData('child_gender', e.target.value)} 
+                            value={data.child_sex} 
+                            onChange={(e) => setData('child_sex', e.target.value)} 
                             className={selectClass}
                         >
-                            <option value="">Gender</option>
+                            <option value="">Sex</option>
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
                         </select>

@@ -111,16 +111,17 @@ export default function CreatePatient() {
   // Form data reference
   const formDataRef = useRef({
     // Personal Information
-    woman_name: "", age: "", literacy_status: "Not sure", phone_number: "", 
+    woman_name: "", age: "", literacy_status: "", phone_number: "", 
     husband_name: "", husband_phone: "", community: "", address: "", 
     lga_id: "", ward_id: "", health_facility_id: "",
     
     // Medical Details
-    gravida: "", parity: "", date_of_registration: "", edd: "", fp_interest: "",
+    gravida: "", age_of_pregnancy_weeks: "", parity: "", date_of_registration: "", edd: "", fp_interest: "",
     
-    // ANC Visits
+    // ANC Visits (1 to 8)
     ...Array.from({ length: 8 }, (_, i) => ({
       [`anc_visit_${i+1}_date`]: "",
+      [`anc_visit_${i+1}_next_date`]: "", // Added next visit date field
       [`tracked_before_anc${i+1}`]: false,
       [`anc${i+1}_paid`]: false,
       [`anc${i+1}_payment_amount`]: "",
@@ -138,7 +139,8 @@ export default function CreatePatient() {
     
     // Delivery
     place_of_delivery: "", delivery_kits_received: false, type_of_delivery: "", 
-    delivery_outcome: "", date_of_delivery: "",
+    complication_if_any: "", delivery_outcome: "", mother_alive: "", mother_status: "",
+    date_of_delivery: "",
     
     // Postnatal
     pnc_visit_1: "", pnc_visit_2: "", pnc_visit_3: "",
@@ -151,7 +153,7 @@ export default function CreatePatient() {
     fp_injectable: false, fp_implant: false, fp_iud: false, fp_other: false, fp_other_specify: "",
     
     // Child Immunization
-    child_name: "", child_dob: "", child_gender: "",
+    child_name: "", child_dob: "", child_sex: "",
     bcg_received: false, bcg_date: "", hep0_received: false, hep0_date: "", opv0_received: false, opv0_date: "",
     penta1_received: false, penta1_date: "", pcv1_received: false, pcv1_date: "", opv1_received: false, opv1_date: "",
     rota1_received: false, rota1_date: "", ipv1_received: false, ipv1_date: "", penta2_received: false, penta2_date: "",
@@ -195,6 +197,22 @@ export default function CreatePatient() {
     setImmediateChangeKey(prev => prev + 1);
   };
 
+  // Handler for visit date that auto-calculates next visit date (4 weeks later)
+  const handleVisitDateChange = (visitNumber) => (e) => {
+    const visitDate = e.target.value;
+    updateFormData(`anc_visit_${visitNumber}_date`, visitDate);
+    
+    // Auto-calculate next visit date (4 weeks later)
+    if (visitDate) {
+      const nextVisitDate = new Date(visitDate);
+      nextVisitDate.setDate(nextVisitDate.getDate() + 28); // 4 weeks = 28 days
+      const formattedNextDate = nextVisitDate.toISOString().split('T')[0];
+      updateFormData(`anc_visit_${visitNumber}_next_date`, formattedNextDate);
+    }
+    
+    setImmediateChangeKey(prev => prev + 1);
+  };
+
   const handleLGAChange = (e) => {
     const lgaId = e.target.value;
     updateFormData('lga_id', lgaId);
@@ -226,11 +244,18 @@ export default function CreatePatient() {
       
       // Clear data for removed visit
       const fieldsToClear = [
-        `anc_visit_${visitNumber}_date`, `tracked_before_anc${visitNumber}`, 
-        `anc${visitNumber}_paid`, `anc${visitNumber}_payment_amount`,
-        `anc${visitNumber}_urinalysis`, `anc${visitNumber}_iron_folate`, 
-        `anc${visitNumber}_mms`, `anc${visitNumber}_sp`, `anc${visitNumber}_sba`,
-        `anc${visitNumber}_hiv_test`, `anc${visitNumber}_hiv_result_received`, 
+        `anc_visit_${visitNumber}_date`, 
+        `anc_visit_${visitNumber}_next_date`, // Added next visit date field
+        `tracked_before_anc${visitNumber}`, 
+        `anc${visitNumber}_paid`, 
+        `anc${visitNumber}_payment_amount`,
+        `anc${visitNumber}_urinalysis`, 
+        `anc${visitNumber}_iron_folate`, 
+        `anc${visitNumber}_mms`, 
+        `anc${visitNumber}_sp`, 
+        `anc${visitNumber}_sba`,
+        `anc${visitNumber}_hiv_test`, 
+        `anc${visitNumber}_hiv_result_received`, 
         `anc${visitNumber}_hiv_result`
       ];
       
@@ -280,7 +305,7 @@ export default function CreatePatient() {
         
         // Reset form
         Object.keys(formDataRef.current).forEach(key => formDataRef.current[key] = "");
-        formDataRef.current.literacy_status = "Not sure";
+        formDataRef.current.literacy_status = "";
         formDataRef.current.health_insurance_status = "Not Enrolled";
         setActiveAncVisits([1]);
         setSelectedAncVisit(1);
@@ -379,17 +404,28 @@ export default function CreatePatient() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Visit Date</label>
+          <label className="block text-sm font-medium text-gray-700">Visit Date *</label>
           <input 
             type="date" 
             defaultValue={formDataRef.current[`anc_visit_${visitNumber}_date`]} 
-            onChange={handleImmediateChange(`anc_visit_${visitNumber}_date`)} 
+            onChange={handleVisitDateChange(visitNumber)} 
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
             required
           />
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Next Visit Date</label>
+          <input 
+            type="date" 
+            defaultValue={formDataRef.current[`anc_visit_${visitNumber}_next_date`]} 
+            onChange={handleImmediateChange(`anc_visit_${visitNumber}_next_date`)} 
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
+            min={formDataRef.current[`anc_visit_${visitNumber}_date`]}
+          />
+        </div>
+
+        <div className="space-y-3 md:col-span-2">
           <Checkbox 
             label="Previously tracked before this visit" 
             name={`tracked_before_anc${visitNumber}`} 
@@ -542,27 +578,27 @@ export default function CreatePatient() {
               required 
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
             >
-              <option value="Not sure">Select literacy status</option>
+              <option value="">Select literacy status</option>
               <option value="Literate">Literate</option>
-              <option value="Illiterate">Illiterate</option>
+              <option value="Not literate">Not literate</option>
             </select>
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Husband's Name</label>
+            <label className="block text-sm font-medium text-gray-700">Next of kin name</label>
             <DebouncedInput 
               type="text" 
-              placeholder="Enter husband's name"
+              placeholder="Enter Next of kin name"
               defaultValue={formDataRef.current.husband_name}
               onDebouncedChange={handleDebouncedChange('husband_name')}
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Husband's Phone</label>
+            <label className="block text-sm font-medium text-gray-700">Next of kin Phone</label>
             <DebouncedInput 
               type="text" 
-              placeholder="Enter husband's phone"
+              placeholder="Enter next of kin phone"
               defaultValue={formDataRef.current.husband_phone}
               onDebouncedChange={handleDebouncedChange('husband_phone')}
             />
@@ -645,6 +681,18 @@ export default function CreatePatient() {
               defaultValue={formDataRef.current.gravida}
               onDebouncedChange={handleDebouncedChange('gravida')}
               min="0" 
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Age of Pregnancy (weeks)</label>
+            <DebouncedInput 
+              type="number" 
+              placeholder="Enter weeks of pregnancy"
+              defaultValue={formDataRef.current.age_of_pregnancy_weeks}
+              onDebouncedChange={handleDebouncedChange('age_of_pregnancy_weeks')}
+              min="0" 
+              max="45"
             />
           </div>
 
@@ -827,6 +875,22 @@ export default function CreatePatient() {
           </div>
 
           <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Complication if any</label>
+            <select 
+              defaultValue={formDataRef.current.complication_if_any} 
+              onChange={handleImmediateChange('complication_if_any')} 
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
+            >
+              <option value="">Select complication</option>
+              <option value="No complication">No complication</option>
+              <option value="Hemorrhage">Hemorrhage</option>
+              <option value="Eclampsia">Eclampsia</option>
+              <option value="Sepsis">Sepsis</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Delivery Outcome</label>
             <select 
               defaultValue={formDataRef.current.delivery_outcome} 
@@ -839,6 +903,35 @@ export default function CreatePatient() {
               <option value="Miscarriage">Miscarriage</option>
             </select>
           </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Mother Alive?</label>
+            <select 
+              defaultValue={formDataRef.current.mother_alive} 
+              onChange={handleImmediateChange('mother_alive')} 
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
+            >
+              <option value="">Select</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+            </select>
+          </div>
+
+          {formDataRef.current.mother_alive === "Yes" && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Mother's Status</label>
+              <select 
+                defaultValue={formDataRef.current.mother_status} 
+                onChange={handleImmediateChange('mother_status')} 
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
+              >
+                <option value="">Select status</option>
+                <option value="Admitted">Admitted</option>
+                <option value="Referred to other facility">Referred to other facility</option>
+                <option value="Discharged home">Discharged home</option>
+              </select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Delivery Date</label>
@@ -943,13 +1036,13 @@ export default function CreatePatient() {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Gender</label>
+            <label className="block text-sm font-medium text-gray-700">Sex</label>
             <select 
-              defaultValue={formDataRef.current.child_gender} 
-              onChange={handleImmediateChange('child_gender')} 
+              defaultValue={formDataRef.current.child_sex} 
+              onChange={handleImmediateChange('child_sex')} 
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
             >
-              <option value="">Select gender</option>
+              <option value="">Select sex</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
             </select>

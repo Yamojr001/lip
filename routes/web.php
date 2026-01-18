@@ -12,6 +12,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\NutritionReportController;
+use App\Http\Controllers\Admin\AdminVaccineController;
 
 // 🏠 Landing Page
 Route::get('/', function () {
@@ -37,41 +38,31 @@ Route::middleware(['auth', 'verified', 'role:phc_staff'])
     ->prefix('phc')
     ->name('phc.')
     ->group(function () {
-        
-        // Dashboard Route
-        Route::get('/dashboard', [PhcStaffController::class, 'index'])->name('dashboard');
-        
-        // Records - Own facility patients
-        Route::get('/records', [PhcStaffController::class, 'records'])->name('records');
 
-        // Create new patient
+        Route::get('/dashboard', [PhcStaffController::class, 'index'])->name('dashboard');
+        Route::get('/records', [PhcStaffController::class, 'records'])->name('records');
         Route::get('/create-patient', [PhcStaffController::class, 'create'])->name('create-patient');
-        
-        // Reports
+
         Route::get('/reports', function () {
-            return Inertia::render('Phc/PhcReports'); 
+            return Inertia::render('Phc/PhcReports');
         })->name('reports');
 
-        // Statistics
         Route::get('/statistics', [PhcStaffController::class, 'statistics'])->name('statistics');
-        
-        // 🔄 NEW: All Patients Search & Cross-Facility Management
+
         Route::get('/all-patients', [PhcStaffController::class, 'allPatients'])->name('all-patients');
         Route::get('/all-patients/{id}', [PhcStaffController::class, 'showAllPatient'])->name('all-patients.show');
         Route::get('/all-patients/{id}/edit', [PhcStaffController::class, 'editAnyPatient'])->name('all-patients.edit');
         Route::patch('/all-patients/{id}', [PhcStaffController::class, 'updateAnyPatient'])->name('all-patients.update');
-        
-        // Patient CRUD Routes (Own Facility Only)
+
         Route::post('/patient', [PhcStaffController::class, 'store'])->name('patient.store');
         Route::get('/patients/{id}', [PhcStaffController::class, 'show'])->name('patients.show');
         Route::get('/patients/{id}/edit', [PhcStaffController::class, 'edit'])->name('patients.edit');
         Route::patch('/patients/{id}', [PhcStaffController::class, 'update'])->name('patients.update');
         Route::delete('/patients/{id}', [PhcStaffController::class, 'destroy'])->name('patients.destroy');
 
-        // Report Generation
         Route::post('/reports/generate', [PhcStaffController::class, 'generateReport'])->name('reports.generate');
-        
-        // 🍎 NUTRITION REPORT ROUTES
+
+        // 🍎 Nutrition Reports
         Route::get('/nutrition-reports', [NutritionReportController::class, 'index'])->name('nutrition.reports.index');
         Route::get('/nutrition-reports/create', [NutritionReportController::class, 'create'])->name('nutrition.reports.create');
         Route::post('/nutrition-reports', [NutritionReportController::class, 'store'])->name('nutrition.reports.store');
@@ -79,6 +70,12 @@ Route::middleware(['auth', 'verified', 'role:phc_staff'])
         Route::put('/nutrition-reports/{nutritionReport}', [NutritionReportController::class, 'update'])->name('nutrition.reports.update');
         Route::delete('/nutrition-reports/{nutritionReport}', [NutritionReportController::class, 'destroy'])->name('nutrition.reports.destroy');
         Route::post('/nutrition-reports/{nutritionReport}/submit', [NutritionReportController::class, 'submit'])->name('nutrition.reports.submit');
+
+        Route::get('/vaccine-accountability', [PhcStaffController::class, 'vaccineAccountability'])->name('vaccine-accountability');
+        Route::post('/vaccine-accountability', [PhcStaffController::class, 'storeVaccineAccountability'])->name('vaccine-accountability.store');
+        Route::post('/vaccine-accountability/draft', [PhcStaffController::class, 'saveVaccineAccountabilityDraft'])->name('vaccine-accountability.draft');
+        Route::get('/vaccine-reports', [PhcStaffController::class, 'vaccineAccountabilityReports'])->name('vaccine-reports.index');
+        Route::get('/vaccine-reports/{id}', [PhcStaffController::class, 'showVaccineReport'])->name('vaccine-reports.show');
     });
 
 // 🧑‍💼 ADMIN ROUTES
@@ -86,60 +83,63 @@ Route::middleware(['auth', 'verified', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-    
-    // Dashboard with all tabs data
-    Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
-    
-    // Individual tab routes for better data loading
-    Route::get('/dashboard/anc', [AdminController::class, 'ancAnalytics'])->name('dashboard.anc');
-    Route::get('/dashboard/delivery', [AdminController::class, 'deliveryAnalytics'])->name('dashboard.delivery');
-    Route::get('/dashboard/immunization', [AdminController::class, 'immunizationAnalytics'])->name('dashboard.immunization');
-    Route::get('/dashboard/fp', [AdminController::class, 'familyPlanningAnalytics'])->name('dashboard.fp');
-    Route::get('/dashboard/hiv', [AdminController::class, 'hivAnalytics'])->name('dashboard.hiv');
-    Route::get('/dashboard/facilities', [AdminController::class, 'facilitiesAnalytics'])->name('dashboard.facilities');
 
-    Route::post('/create-phc', [AdminController::class, 'createPhc'])->name('createPhc');
+        Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
 
-    // Reports
-    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
-    Route::post('/reports/export', [ReportController::class, 'export'])->name('reports.export');
+        Route::get('/dashboard/anc', [AdminController::class, 'ancAnalytics'])->name('dashboard.anc');
+        Route::get('/dashboard/delivery', [AdminController::class, 'deliveryAnalytics'])->name('dashboard.delivery');
+        Route::get('/dashboard/immunization', [AdminController::class, 'immunizationAnalytics'])->name('dashboard.immunization');
+        Route::get('/dashboard/fp', [AdminController::class, 'familyPlanningAnalytics'])->name('dashboard.fp');
+        Route::get('/dashboard/hiv', [AdminController::class, 'hivAnalytics'])->name('dashboard.hiv');
+        Route::get('/dashboard/facilities', [AdminController::class, 'facilitiesAnalytics'])->name('dashboard.facilities');
 
-    // Patient Management Routes
-    Route::get('/patients', [AdminController::class, 'allPatients'])->name('patients.index');
-    Route::get('/patients/{id}', [AdminController::class, 'showPatient'])->name('patients.show');
-    Route::get('/patients/{id}/edit', [AdminController::class, 'editPatient'])->name('patients.edit');
-    Route::patch('/patients/{id}', [AdminController::class, 'updatePatient'])->name('patients.update');
-    Route::delete('/patients/{id}', [AdminController::class, 'destroyPatient'])->name('patients.destroy');
-    Route::get('/patients/export', [AdminController::class, 'exportPatients'])->name('patients.export');
+        Route::post('/create-phc', [AdminController::class, 'createPhc'])->name('createPhc');
 
-    // LOCATIONS ROUTES
-    Route::get('/manage-locations', [LgaController::class, 'index'])->name('manage-locations');
-    Route::post('/lgas', [LgaController::class, 'store'])->name('lgas.store');
-    Route::post('/wards', [WardController::class, 'store'])->name('wards.store');
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::post('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 
-    // FACILITIES ROUTES
-    Route::get('/manage-facilities', [PhcController::class, 'adminIndex'])->name('manage-facilities');
-    Route::post('/phcs', [PhcController::class, 'store'])->name('phcs.store');
+        Route::get('/patients', [AdminController::class, 'allPatients'])->name('patients.index');
+        Route::get('/patients/{id}', [AdminController::class, 'showPatient'])->name('patients.show');
+        Route::get('/patients/{id}/edit', [AdminController::class, 'editPatient'])->name('patients.edit');
+        Route::patch('/patients/{id}', [AdminController::class, 'updatePatient'])->name('patients.update');
+        Route::delete('/patients/{id}', [AdminController::class, 'destroyPatient'])->name('patients.destroy');
+        Route::get('/patients/export', [AdminController::class, 'exportPatients'])->name('patients.export');
 
-    // 🍎 ADMIN NUTRITION REPORT ROUTES
-    Route::get('/nutrition-reports', [NutritionReportController::class, 'adminIndex'])->name('nutrition.reports.index');
-    Route::get('/nutrition-statistics', [NutritionReportController::class, 'adminStatistics'])->name('nutrition.statistics');
-    Route::get('/nutrition-export', [NutritionReportController::class, 'export'])->name('nutrition.export');
+        Route::get('/manage-locations', [LgaController::class, 'index'])->name('manage-locations');
+        Route::post('/lgas', [LgaController::class, 'store'])->name('lgas.store');
+        Route::post('/wards', [WardController::class, 'store'])->name('wards.store');
 
-    // STATISTICS ROUTE
-    Route::get('/statistics', [StatisticsController::class, 'index'])->name('statistics');
+        Route::get('/manage-facilities', [PhcController::class, 'adminIndex'])->name('manage-facilities');
+        Route::post('/phcs', [PhcController::class, 'store'])->name('phcs.store');
 
-    // Other Admin Pages
-    Route::get('/records', function () {
-        return Inertia::render('Admin/AllPatients');
-    })->name('records');
+        Route::get('/nutrition-reports', [NutritionReportController::class, 'adminIndex'])->name('nutrition.reports.index');
+        Route::get('/nutrition-statistics', [NutritionReportController::class, 'adminStatistics'])->name('nutrition.statistics');
+        Route::get('/nutrition-export', [NutritionReportController::class, 'export'])->name('nutrition.export');
 
-    Route::get('/manage-data', function () {
-        return Inertia::render('Admin/ManageData');
-    })->name('manage-data');
-});
+        // 🩺 ADMIN VACCINE REPORT ROUTES
+        Route::get('/vaccine-reports', [AdminVaccineController::class, 'index'])->name('vaccine.reports.index');
+        Route::get('/vaccine-statistics', [AdminVaccineController::class, 'statistics'])->name('vaccine.statistics');
+        Route::get('/vaccine-reports/{id}', [AdminVaccineController::class, 'show'])->name('vaccine.reports.show');
+        Route::get('/vaccine-export', [AdminVaccineController::class, 'export'])->name('vaccine.export');
 
-// 🎯 Redirect users to their dashboards based on role
+        // ✅ FIXED ROUTE NAME (NO DUPLICATE "admin.")
+        Route::patch(
+            '/vaccine-reports/{id}/status',
+            [AdminVaccineController::class, 'updateStatus']
+        )->name('vaccine.reports.update');
+
+        Route::get('/statistics', [StatisticsController::class, 'index'])->name('statistics');
+
+        Route::get('/records', function () {
+            return Inertia::render('Admin/AllPatients');
+        })->name('records');
+
+        Route::get('/manage-data', function () {
+            return Inertia::render('Admin/ManageData');
+        })->name('manage-data');
+    });
+
+// 🎯 Role-based dashboard redirect
 Route::get('/dashboard', function () {
     $user = auth()->user();
 

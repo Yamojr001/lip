@@ -131,7 +131,7 @@ export default function EditAnyPatient() {
   const { data, setData, patch, processing, errors } = useForm({
     woman_name: patient.woman_name || "",
     age: patient.age || "",
-    literacy_status: patient.literacy_status || "Not sure",
+    literacy_status: patient.literacy_status || "",
     phone_number: patient.phone_number || "",
     husband_name: patient.husband_name || "",
     husband_phone: patient.husband_phone || "",
@@ -141,14 +141,16 @@ export default function EditAnyPatient() {
     ward_id: patient.ward_id || "",
     health_facility_id: patient.health_facility_id || "",
     gravida: patient.gravida || "",
+    age_of_pregnancy_weeks: patient.age_of_pregnancy_weeks || "", // NEW FIELD
     parity: patient.parity || "",
     date_of_registration: formatDateForInput(patient.date_of_registration),
     edd: formatDateForInput(patient.edd),
     fp_interest: patient.fp_interest || "", // New field
 
-    // ANC Visits (up to 8)
+    // ANC Visits (up to 8) with NEXT VISIT DATE
     ...Array.from({ length: 8 }, (_, i) => ({
       [`anc_visit_${i+1}_date`]: formatDateForInput(patient[`anc_visit_${i+1}_date`]),
+      [`anc_visit_${i+1}_next_date`]: formatDateForInput(patient[`anc_visit_${i+1}_next_date`]), // Added next visit date
       [`tracked_before_anc${i+1}`]: !!patient[`tracked_before_anc${i+1}`],
       [`anc${i+1}_paid`]: !!patient[`anc${i+1}_paid`],
       [`anc${i+1}_payment_amount`]: patient[`anc${i+1}_payment_amount`] || "",
@@ -163,11 +165,14 @@ export default function EditAnyPatient() {
     })).reduce((acc, curr) => ({ ...acc, ...curr }), {}),
     additional_anc_count: patient.additional_anc_count || "",
     
-    // Delivery
+    // Delivery - UPDATED WITH NEW FIELDS
     place_of_delivery: patient.place_of_delivery || "",
     delivery_kits_received: !!patient.delivery_kits_received,
     type_of_delivery: patient.type_of_delivery || "",
+    complication_if_any: patient.complication_if_any || "", // NEW FIELD
     delivery_outcome: patient.delivery_outcome || "",
+    mother_alive: patient.mother_alive || "", // NEW FIELD
+    mother_status: patient.mother_status || "", // NEW FIELD
     date_of_delivery: formatDateForInput(patient.date_of_delivery),
     
     // Postnatal
@@ -192,10 +197,10 @@ export default function EditAnyPatient() {
     fp_other: !!patient.fp_other,
     fp_other_specify: patient.fp_other_specify || "",
     
-    // Child Immunization
+    // Child Immunization - UPDATED gender to sex
     child_name: patient.child_name || "",
     child_dob: formatDateForInput(patient.child_dob),
-    child_gender: patient.child_gender || "",
+    child_sex: patient.child_sex || "", // CHANGED FROM child_gender
     bcg_received: !!patient.bcg_received, bcg_date: formatDateForInput(patient.bcg_date),
     hep0_received: !!patient.hep0_received, hep0_date: formatDateForInput(patient.hep0_date),
     opv0_received: !!patient.opv0_received, opv0_date: formatDateForInput(patient.opv0_date),
@@ -258,6 +263,20 @@ export default function EditAnyPatient() {
     }
   }, [data.ward_id, phcFacilities, patient.ward_id]);
 
+  // Handle visit date change with auto-calculation of next visit date
+  const handleVisitDateChange = (visitNumber) => (e) => {
+    const visitDate = e.target.value;
+    setData(`anc_visit_${visitNumber}_date`, visitDate);
+    
+    // Auto-calculate next visit date (4 weeks later) if next date is not already set
+    if (visitDate && !data[`anc_visit_${visitNumber}_next_date`]) {
+      const nextVisitDate = new Date(visitDate);
+      nextVisitDate.setDate(nextVisitDate.getDate() + 28); // 4 weeks = 28 days
+      const formattedNextDate = nextVisitDate.toISOString().split('T')[0];
+      setData(`anc_visit_${visitNumber}_next_date`, formattedNextDate);
+    }
+  };
+
   // Handle form submission - PATCH method for updates
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -281,7 +300,6 @@ export default function EditAnyPatient() {
   const handleBackToView = () => {
     router.get(route('phc.all-patients.show', patient.id));
   };
-
 
   // Reusable Components
   const InputSection = React.memo(({ title, icon: Icon, children }) => (
@@ -311,7 +329,7 @@ export default function EditAnyPatient() {
     </div>
   ));
 
-  // Component for editing a single ANC visit (reused from EditPatient)
+  // Component for editing a single ANC visit with NEXT VISIT DATE
   const AncVisitEditSection = ({ visitNumber }) => {
     const prefix = `anc${visitNumber}`;
     return (
@@ -324,12 +342,23 @@ export default function EditAnyPatient() {
             <input 
               type="date" 
               value={data[`anc_visit_${visitNumber}_date`]} 
-              onChange={(e) => setData(`anc_visit_${visitNumber}_date`, e.target.value)} 
+              onChange={handleVisitDateChange(visitNumber)} 
               className={inputClass}
             />
           </div>
 
-          <div className="space-y-3 pt-6 md:pt-0">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Next Visit Date</label>
+            <input 
+              type="date" 
+              value={data[`anc_visit_${visitNumber}_next_date`]} 
+              onChange={(e) => setData(`anc_visit_${visitNumber}_next_date`, e.target.value)} 
+              className={inputClass}
+              min={data[`anc_visit_${visitNumber}_date`]}
+            />
+          </div>
+
+          <div className="space-y-3 md:col-span-2">
             <Checkbox 
               label="Previously tracked before this visit" 
               name={`tracked_before_anc${visitNumber}`} 
@@ -388,7 +417,7 @@ export default function EditAnyPatient() {
 
             {data[`${prefix}_hiv_test`] === "Yes" && (
               <>
-                <div className="flex items-center pt-6">
+                <div className="flex items-center">
                   <Checkbox 
                     label="Results received" 
                     name={`${prefix}_hiv_result_received`} 
@@ -591,9 +620,9 @@ export default function EditAnyPatient() {
                 required 
                 className={selectClass}
               >
-                  <option value="Not sure">Select literacy status</option>
+                  <option value="">Select literacy status</option>
                   <option value="Literate">Literate</option>
-                  <option value="Illiterate">Illiterate</option>
+                  <option value="Not literate">Not literate</option>
               </select>
               {errors.literacy_status && <p className="text-red-500 text-sm mt-1">{errors.literacy_status}</p>}
             </div>
@@ -653,7 +682,7 @@ export default function EditAnyPatient() {
                 onChange={(e) => setData('lga_id', e.target.value)} 
                 required 
                 className={selectClass}
-                disabled={isCrossFacility} // Disable if cross-facility
+                disabled={isCrossFacility}
               >
                   <option value="">Select LGA</option>
                   {lgas.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -668,7 +697,7 @@ export default function EditAnyPatient() {
                 value={data.ward_id} 
                 onChange={(e) => setData('ward_id', e.target.value)} 
                 required 
-                disabled={!data.lga_id || isCrossFacility} // Disable if no LGA or cross-facility
+                disabled={!data.lga_id || isCrossFacility}
                 className={`${selectClass} ${(!data.lga_id || isCrossFacility) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               >
                   <option value="">Select Ward</option>
@@ -685,7 +714,7 @@ export default function EditAnyPatient() {
                 value={data.health_facility_id} 
                 onChange={(e) => setData('health_facility_id', e.target.value)} 
                 required 
-                disabled={!data.ward_id || isCrossFacility} // Disable if no Ward or cross-facility
+                disabled={!data.ward_id || isCrossFacility}
                 className={`${selectClass} ${(!data.ward_id || isCrossFacility) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               >
                   <option value="">Select Health Facility</option>
@@ -695,7 +724,6 @@ export default function EditAnyPatient() {
               {isCrossFacility && <p className="text-xs text-gray-500 mt-1">Health Facility cannot be changed for cross-facility patients.</p>}
             </div>
 
-            {/* Original Facility Display */}
             {isCrossFacility && (
               <div className="md:col-span-2 bg-blue-50 p-3 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2 text-blue-800">
@@ -721,6 +749,19 @@ export default function EditAnyPatient() {
                 value={data.gravida}
                 onDebouncedChange={(value) => setData('gravida', value)}
                 min="0" 
+              />
+            </div>
+
+            <div>
+              <label htmlFor="age_of_pregnancy_weeks" className="block text-sm font-medium text-gray-700 mb-1">Age of Pregnancy (weeks)</label>
+              <DebouncedInput 
+                id="age_of_pregnancy_weeks"
+                type="number" 
+                placeholder="Enter weeks of pregnancy" 
+                value={data.age_of_pregnancy_weeks}
+                onDebouncedChange={(value) => setData('age_of_pregnancy_weeks', value)}
+                min="0" 
+                max="45"
               />
             </div>
             
@@ -773,6 +814,20 @@ export default function EditAnyPatient() {
                 <option value="No">Not Interested</option>
               </select>
             </div>
+
+            <div>
+              <label htmlFor="health_insurance_status" className="block text-sm font-medium text-gray-700 mb-1">Health Insurance</label>
+              <select 
+                id="health_insurance_status"
+                value={data.health_insurance_status} 
+                onChange={(e) => setData('health_insurance_status', e.target.value)} 
+                className={selectClass}
+              >
+                <option value="Not Enrolled">Select insurance status</option>
+                <option value="Yes">Enrolled</option>
+                <option value="No">Not Enrolled</option>
+              </select>
+            </div>
         </InputSection>
         
         {/* --- SECTION 3: ANC Visit Tracking --- */}
@@ -803,7 +858,7 @@ export default function EditAnyPatient() {
         {/* --- SECTION 4: Delivery Details --- */}
         <InputSection title="Delivery Details" icon={Baby}>
             <div>
-              <label htmlFor="place_of_delivery" className="block text-sm font-medium text-gray-700 mb-1">Place of Delivery</label>
+              <label htmlFor="place_of_delivery" className="block text-sm font-medium text-gray-700 mb-1">Delivery Location</label>
               <select 
                 id="place_of_delivery"
                 value={data.place_of_delivery} 
@@ -816,8 +871,9 @@ export default function EditAnyPatient() {
                   <option value="Traditional Attendant">Traditional Attendant</option>
               </select>
             </div>
+
             <div>
-              <label htmlFor="type_of_delivery" className="block text-sm font-medium text-gray-700 mb-1">Type of Delivery</label>
+              <label htmlFor="type_of_delivery" className="block text-sm font-medium text-gray-700 mb-1">Delivery Type</label>
               <select 
                 id="type_of_delivery"
                 value={data.type_of_delivery} 
@@ -831,6 +887,24 @@ export default function EditAnyPatient() {
                   <option value="Breech">Breech</option>
               </select>
             </div>
+
+            <div>
+              <label htmlFor="complication_if_any" className="block text-sm font-medium text-gray-700 mb-1">Complication if any</label>
+              <select 
+                id="complication_if_any"
+                value={data.complication_if_any} 
+                onChange={(e) => setData('complication_if_any', e.target.value)} 
+                className={selectClass}
+              >
+                  <option value="">Select complication</option>
+                  <option value="No complication">No complication</option>
+                  <option value="Hemorrhage">Hemorrhage</option>
+                  <option value="Eclampsia">Eclampsia</option>
+                  <option value="Sepsis">Sepsis</option>
+                  <option value="Other">Other</option>
+              </select>
+            </div>
+
             <div>
               <label htmlFor="delivery_outcome" className="block text-sm font-medium text-gray-700 mb-1">Delivery Outcome</label>
               <select 
@@ -840,13 +914,45 @@ export default function EditAnyPatient() {
                 className={selectClass}
               >
                   <option value="">Select outcome</option>
-                  <option value="Live birth">Live birth</option>
+                  <option value="Live birth">Live Birth</option>
                   <option value="Stillbirth">Stillbirth</option>
                   <option value="Miscarriage">Miscarriage</option>
               </select>
             </div>
+
             <div>
-              <label htmlFor="date_of_delivery" className="block text-sm font-medium text-gray-700 mb-1">Date of Delivery</label>
+              <label htmlFor="mother_alive" className="block text-sm font-medium text-gray-700 mb-1">Mother Alive?</label>
+              <select 
+                id="mother_alive"
+                value={data.mother_alive} 
+                onChange={(e) => setData('mother_alive', e.target.value)} 
+                className={selectClass}
+              >
+                  <option value="">Select</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+              </select>
+            </div>
+
+            {data.mother_alive === "Yes" && (
+              <div>
+                <label htmlFor="mother_status" className="block text-sm font-medium text-gray-700 mb-1">Mother's Status</label>
+                <select 
+                  id="mother_status"
+                  value={data.mother_status} 
+                  onChange={(e) => setData('mother_status', e.target.value)} 
+                  className={selectClass}
+                >
+                  <option value="">Select status</option>
+                  <option value="Admitted">Admitted</option>
+                  <option value="Referred to other facility">Referred to other facility</option>
+                  <option value="Discharged home">Discharged home</option>
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="date_of_delivery" className="block text-sm font-medium text-gray-700 mb-1">Delivery Date</label>
               <input 
                 id="date_of_delivery"
                 type="date" 
@@ -855,6 +961,7 @@ export default function EditAnyPatient() {
                 className={inputClass} 
               />
             </div>
+
             <div className="md:col-span-2 pt-6">
               <Checkbox 
                 label="Received delivery kits" 
@@ -901,19 +1008,6 @@ export default function EditAnyPatient() {
 
         {/* --- SECTION 6: Health Insurance --- */}
         <InputSection title="Health Insurance" icon={Shield}>
-            <div>
-              <label htmlFor="health_insurance_status" className="block text-sm font-medium text-gray-700 mb-1">Insurance Status *</label>
-              <select 
-                id="health_insurance_status"
-                value={data.health_insurance_status} 
-                onChange={(e) => setData('health_insurance_status', e.target.value)} 
-                className={selectClass}
-              >
-                  <option value="Not Enrolled">Select insurance status</option>
-                  <option value="Yes">Enrolled</option>
-                  <option value="No">Not Enrolled</option>
-              </select>
-            </div>
             {data.health_insurance_status === "Yes" && (
               <>
                 <div>
@@ -1013,14 +1107,14 @@ export default function EditAnyPatient() {
           </div>
 
           <div>
-            <label htmlFor="child_gender" className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+            <label htmlFor="child_sex" className="block text-sm font-medium text-gray-700 mb-1">Sex</label>
             <select 
-              id="child_gender"
-              value={data.child_gender} 
-              onChange={(e) => setData('child_gender', e.target.value)} 
+              id="child_sex"
+              value={data.child_sex} 
+              onChange={(e) => setData('child_sex', e.target.value)} 
               className={selectClass}
             >
-              <option value="">Select gender</option>
+              <option value="">Select sex</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
             </select>
@@ -1028,18 +1122,18 @@ export default function EditAnyPatient() {
 
           <div className="md:col-span-2 space-y-6">
             {[
-              { title: "At Birth", vaccines: ["BCG", "Hep0", "OPV0"], color: "blue" },
-              { title: "6 Weeks", vaccines: ["Penta1", "PCV1", "OPV1", "Rota1", "IPV1"], color: "green" },
-              { title: "10 Weeks", vaccines: ["Penta2", "PCV2", "Rota2", "OPV2"], color: "yellow" },
-              { title: "14 Weeks", vaccines: ["Penta3", "PCV3", "OPV3", "Rota3", "IPV2"], color: "orange" },
-              { title: "9 Months", vaccines: ["Measles", "YellowFever", "VitaminA"], color: "red" },
-              { title: "15 Months", vaccines: ["MCV2"], color: "purple" }
+              { title: "At Birth", vaccines: ["bcg", "hep0", "opv0"], color: "blue" },
+              { title: "6 Weeks", vaccines: ["penta1", "pcv1", "opv1", "rota1", "ipv1"], color: "green" },
+              { title: "10 Weeks", vaccines: ["penta2", "pcv2", "rota2", "opv2"], color: "yellow" },
+              { title: "14 Weeks", vaccines: ["penta3", "pcv3", "opv3", "rota3", "ipv2"], color: "orange" },
+              { title: "9 Months", vaccines: ["measles", "yellow_fever", "vitamin_a"], color: "red" },
+              { title: "15 Months", vaccines: ["mcv2"], color: "purple" }
             ].map((stage, index) => (
               <div key={index} className={`bg-${stage.color}-50 rounded-xl p-4 border border-${stage.color}-200`}>
                 <h4 className={`font-semibold text-${stage.color}-800 mb-3`}>{stage.title}</h4>
                 <div className={`grid grid-cols-1 ${stage.vaccines.length > 3 ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'} gap-3`}>
                   {stage.vaccines.map(vaccine => (
-                    <VaccineCheckboxEdit key={vaccine} label={vaccine.replace(/([A-Z])/g, ' $1').trim()} namePrefix={vaccine.toLowerCase()} />
+                    <VaccineCheckboxEdit key={vaccine} label={vaccine.replace(/_/g, ' ').replace(/([a-z])([0-9])/g, '$1 $2').toUpperCase()} namePrefix={vaccine} />
                   ))}
                 </div>
               </div>

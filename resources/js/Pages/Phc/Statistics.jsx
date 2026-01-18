@@ -528,7 +528,7 @@ export default function PhcStatistics() {
 
                 {/* Literacy Status Distribution */}
                 <div className="bg-white p-6 rounded-xl shadow-lg">
-                    <h3 className="text-xl font-semibold mb-4">Literacy Status Distribution</h3>
+                    <h3 className="text-xl font-semibold mb-4">Education Status Distribution</h3>
                     <div className="h-64">
                         <Doughnut data={literacyStatusChartData} options={pieDoughnutOptions} />
                     </div>

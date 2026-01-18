@@ -47,9 +47,10 @@ const InfoRow = ({ label, value, className = "" }) => (
     </div>
 );
 
-// Component for displaying a single ANC visit's full details
+// Component for displaying a single ANC visit's full details with NEXT VISIT DATE
 const AncVisitDetails = ({ patient, visitNumber }) => {
     const visitDate = patient[`anc_visit_${visitNumber}_date`];
+    const nextVisitDate = patient[`anc_visit_${visitNumber}_next_date`]; // NEW FIELD
     const trackedBefore = patient[`tracked_before_anc${visitNumber}`];
     const paid = patient[`anc${visitNumber}_paid`];
     const paymentAmount = patient[`anc${visitNumber}_payment_amount`];
@@ -62,7 +63,7 @@ const AncVisitDetails = ({ patient, visitNumber }) => {
     const hivResultReceived = patient[`anc${visitNumber}_hiv_result_received`];
     const hivResult = patient[`anc${visitNumber}_hiv_result`];
 
-    if (!visitDate && !trackedBefore && !paid && !urinalysis && !ironFolate && !mms && !sp && !sba && !hivTest) {
+    if (!visitDate && !trackedBefore && !paid && !urinalysis && !ironFolate && !mms && !sp && !sba && !hivTest && !nextVisitDate) {
         return null; // Don't render if there's no data for this visit
     }
 
@@ -74,6 +75,7 @@ const AncVisitDetails = ({ patient, visitNumber }) => {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                 <InfoRow label="Visit Date" value={formatDate(visitDate)} />
+                <InfoRow label="Next Visit Date" value={formatDate(nextVisitDate)} /> {/* NEW ROW */}
                 <InfoRow label="Tracked Before Visit" value={formatBoolean(trackedBefore)} />
                 <InfoRow label="Payment Made" value={formatBoolean(paid)} />
                 {paid && <InfoRow label="Payment Amount" value={`₦${paymentAmount}`} />}
@@ -134,7 +136,12 @@ export default function ViewPatient() {
     
     // Determine active ANC visits based on dates (or other criteria if needed)
     const activeAncVisits = Array.from({ length: 8 }, (_, i) => i + 1)
-        .filter(visitNumber => patient[`anc_visit_${visitNumber}_date`] || patient[`tracked_before_anc${visitNumber}`] || patient[`anc${visitNumber}_paid`]);
+        .filter(visitNumber => 
+            patient[`anc_visit_${visitNumber}_date`] || 
+            patient[`tracked_before_anc${visitNumber}`] || 
+            patient[`anc${visitNumber}_paid`] ||
+            patient[`anc_visit_${visitNumber}_next_date`]  // Include next visit date in filter
+        );
 
     const fpMethods = [];
     if (patient.fp_male_condom) fpMethods.push("Male Condom");
@@ -209,17 +216,33 @@ export default function ViewPatient() {
                     {/* Pregnancy & Registration Information */}
                     <Section title="Pregnancy & Registration Information" icon={Baby}>
                         <InfoRow label="Gravida (G)" value={patient.gravida} />
+                        <InfoRow label="Age of Pregnancy (weeks)" value={patient.age_of_pregnancy_weeks} />
                         <InfoRow label="Parity (P)" value={patient.parity} />
                         <InfoRow label="Date of Registration" value={formatDate(patient.date_of_registration)} />
                         <InfoRow label="Expected Delivery Date (EDD)" value={formatDate(patient.edd)} />
                         <InfoRow label="Family Planning Interest" value={patient.fp_interest} />
+                        <InfoRow label="Health Insurance Status" value={patient.health_insurance_status} />
+                        {patient.health_insurance_status === "Yes" && (
+                            <>
+                                <InfoRow label="Insurance Provider" value={patient.insurance_type} />
+                                {patient.insurance_type === "Others" && (
+                                    <InfoRow label="Other Provider" value={patient.insurance_other_specify} />
+                                )}
+                                <InfoRow label="Insurance Satisfaction" value={formatBoolean(patient.insurance_satisfaction)} />
+                            </>
+                        )}
                     </Section>
 
                     {/* Delivery Information */}
                     <Section title="Delivery Information" icon={Calendar}>
                         <InfoRow label="Place of Delivery" value={patient.place_of_delivery} />
                         <InfoRow label="Type of Delivery" value={patient.type_of_delivery} />
+                        <InfoRow label="Complication if any" value={patient.complication_if_any} />
                         <InfoRow label="Delivery Outcome" value={patient.delivery_outcome} />
+                        <InfoRow label="Mother Alive" value={patient.mother_alive} />
+                        {patient.mother_alive === "Yes" && (
+                            <InfoRow label="Mother's Status" value={patient.mother_status} />
+                        )}
                         <InfoRow label="Date of Delivery" value={formatDate(patient.date_of_delivery)} />
                         <InfoRow label="Delivery Kits Received" value={formatBoolean(patient.delivery_kits_received)} />
                     </Section>
@@ -246,20 +269,6 @@ export default function ViewPatient() {
                         <InfoRow label="PNC Visit 3 Date" value={formatDate(patient.pnc_visit_3)} />
                     </Section>
 
-                    {/* Health Insurance */}
-                    <Section title="Health Insurance" icon={Shield}>
-                        <InfoRow label="Insurance Status" value={patient.health_insurance_status} />
-                        {patient.health_insurance_status === "Yes" && (
-                            <>
-                                <InfoRow label="Insurance Type" value={patient.insurance_type} />
-                                {patient.insurance_type === "Others" && (
-                                    <InfoRow label="Other Provider" value={patient.insurance_other_specify} />
-                                )}
-                                <InfoRow label="Insurance Satisfaction" value={formatBoolean(patient.insurance_satisfaction)} />
-                            </>
-                        )}
-                    </Section>
-
                     {/* Family Planning */}
                     <Section title="Family Planning (FP)" icon={Dna}>
                         <InfoRow label="Currently Using FP" value={formatBoolean(patient.fp_using)} />
@@ -282,7 +291,7 @@ export default function ViewPatient() {
                     <Section title="Child Immunization" icon={Baby}>
                         <InfoRow label="Child's Name" value={patient.child_name} />
                         <InfoRow label="Date of Birth" value={formatDate(patient.child_dob)} />
-                        <InfoRow label="Gender" value={patient.child_gender} />
+                        <InfoRow label="Sex" value={patient.child_sex} />
 
                         <div className="mt-4 space-y-4">
                             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">

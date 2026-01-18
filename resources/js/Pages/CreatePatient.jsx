@@ -176,15 +176,15 @@ export default function CreatePatient() {
             <input type="text" placeholder="Phone Number" value={data.phone_number} onChange={handleInputChange('phone_number')} className="p-2 border rounded-lg" />
             
             <select value={data.literacy_status} onChange={handleInputChange('literacy_status')} required className="p-2 border rounded-lg">
-                <option value="Not sure">Literacy Status *</option>
-                <option value="Literate">Literate</option>
-                <option value="Illiterate">Illiterate</option>
+                <option value="Not sure">Education Status *</option>
+                <option value="Literate">Educated</option>
+                <option value="Illiterate">Uneducated</option>
                 <option value="Not sure">Not sure</option>
             </select>
             {errors.literacy_status && <p className="text-red-500 text-sm">{errors.literacy_status}</p>}
 
-            <input type="text" placeholder="Husband Name" value={data.husband_name} onChange={handleInputChange('husband_name')} className="p-2 border rounded-lg" />
-            <input type="text" placeholder="Husband Phone" value={data.husband_phone} onChange={handleInputChange('husband_phone')} className="p-2 border rounded-lg" />
+            <input type="text" placeholder="Next Of kin name" value={data.husband_name} onChange={handleInputChange('husband_name')} className="p-2 border rounded-lg" />
+            <input type="text" placeholder="Next of kin Phone" value={data.husband_phone} onChange={handleInputChange('husband_phone')} className="p-2 border rounded-lg" />
             <input type="text" placeholder="Community *" value={data.community} onChange={handleInputChange('community')} required className="p-2 border rounded-lg" />
             <input type="text" placeholder="Address (House No. & Street) *" value={data.address} onChange={handleInputChange('address')} required className="col-span-2 p-2 border rounded-lg" />
             
