@@ -1597,6 +1597,13 @@ export default function Dashboard() {
                             <Calendar size={16} />
                             <span>{currentYear}</span>
                         </div>
+                        <a
+                            href="/admin/patients/export"
+                            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                        >
+                            <Download size={16} />
+                            Export Data
+                        </a>
                         <button
                             onClick={handleRefresh}
                             disabled={isRefreshing}

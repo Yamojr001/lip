@@ -12,7 +12,20 @@ const translations = {
             locations: 'Locations',
             logout: 'Logout',
             profile: 'Profile',
-            language: 'Language'
+            language: 'Language',
+            findPatient: 'Find Patient',
+            registerPatient: 'Register Patient',
+            children: 'Children',
+            myRecords: 'My Records',
+            allPatients: 'All Patients',
+            vaccineAccountability: 'Vaccine Accountability',
+            nutritionReports: 'Nutrition Reports',
+            vaccineReports: 'Vaccine Reports',
+            nutritionStatistics: 'Nutrition Statistics',
+            vaccineStatistics: 'Vaccine Statistics',
+            manageLocations: 'Manage Locations',
+            manageFacilities: 'Manage Facilities',
+            records: 'Records'
         },
         common: {
             save: 'Save',
@@ -38,7 +51,9 @@ const translations = {
             date: 'Date',
             status: 'Status',
             phone: 'Phone',
-            address: 'Address'
+            address: 'Address',
+            welcome: 'Welcome',
+            logout: 'Logout'
         },
         patient: {
             register: 'Register Patient',
@@ -115,7 +130,20 @@ const translations = {
             locations: 'Wurare',
             logout: 'Fita',
             profile: 'Bayani',
-            language: 'Harshe'
+            language: 'Harshe',
+            findPatient: 'Nemo Majinyaci',
+            registerPatient: 'Rijistar Majinyaci',
+            children: 'Yara',
+            myRecords: 'Bayanai Na',
+            allPatients: 'Dukan Majinyata',
+            vaccineAccountability: 'Lissafin Allura',
+            nutritionReports: 'Rahoton Abinci',
+            vaccineReports: 'Rahoton Allura',
+            nutritionStatistics: 'Kididdigan Abinci',
+            vaccineStatistics: 'Kididdigan Allura',
+            manageLocations: 'Sarrafa Wurare',
+            manageFacilities: 'Sarrafa Asibitoci',
+            records: 'Bayanai'
         },
         common: {
             save: 'Ajiye',
@@ -141,7 +169,9 @@ const translations = {
             date: 'Kwanan wata',
             status: 'Matsayi',
             phone: 'Waya',
-            address: 'Adireshi'
+            address: 'Adireshi',
+            welcome: 'Barka da zuwa',
+            logout: 'Fita'
         },
         patient: {
             register: 'Rijistar Majinyaci',
@@ -218,7 +248,20 @@ const translations = {
             locations: 'Awon Ibi',
             logout: 'Jade',
             profile: 'Akoonu',
-            language: 'Ede'
+            language: 'Ede',
+            findPatient: 'Wa Alaisan',
+            registerPatient: 'Forukọsilẹ Alaisan',
+            children: 'Awon Ọmọ',
+            myRecords: 'Awon Igbasilẹ Mi',
+            allPatients: 'Gbogbo Alaisan',
+            vaccineAccountability: 'Iroyin Ajesara',
+            nutritionReports: 'Ijabọ Ounjẹ',
+            vaccineReports: 'Ijabọ Ajesara',
+            nutritionStatistics: 'Awon Iwe Ounjẹ',
+            vaccineStatistics: 'Awon Iwe Ajesara',
+            manageLocations: 'Ṣakoso Awon Ibi',
+            manageFacilities: 'Ṣakoso Ile-iwosan',
+            records: 'Awon Igbasilẹ'
         },
         common: {
             save: 'Fi Pamo',
@@ -244,7 +287,9 @@ const translations = {
             date: 'Ojo',
             status: 'Ipo',
             phone: 'Foonu',
-            address: 'Adiresi'
+            address: 'Adiresi',
+            welcome: 'E kaabo',
+            logout: 'Jade'
         },
         patient: {
             register: 'Forukọsilẹ Alaisan',
