@@ -375,11 +375,96 @@ export default function ViewPatient() {
                         <InfoRow label="Delivery Kits Received" value={formatBoolean(patient.delivery_kits_received)} />
                     </Section>
 
+                    {/* Vital Signs */}
+                    <Section title="Vital Signs" icon={Activity}>
+                        <InfoRow label="Blood Pressure" value={patient.blood_pressure} />
+                        <InfoRow label="Weight (kg)" value={patient.weight_kg} />
+                        <InfoRow label="Height (cm)" value={patient.height_cm} />
+                        <InfoRow label="Blood Group" value={patient.blood_group} />
+                        <InfoRow label="Blood Level (g/dL)" value={patient.blood_level} />
+                        <InfoRow label="Preferred Language" value={patient.preferred_language} />
+                    </Section>
+
                     {/* Postnatal Care */}
                     <Section title="Postnatal Care (PNC)" icon={Heart}>
-                        <InfoRow label="PNC Visit 1 Date" value={formatDate(patient.pnc_visit_1)} />
-                        <InfoRow label="PNC Visit 2 Date" value={formatDate(patient.pnc_visit_2)} />
-                        <InfoRow label="PNC Visit 3 Date" value={formatDate(patient.pnc_visit_3)} />
+                        {[1, 2, 3].map(visitNum => {
+                            const visitDate = patient[`pnc_visit_${visitNum}`];
+                            const prefix = `pnc${visitNum}_`;
+                            const hasData = visitDate || patient[`${prefix}breastfeeding_counseling`];
+                            
+                            if (!hasData && !visitDate) return null;
+                            
+                            return (
+                                <div key={visitNum} className="mb-6 pb-6 border-b border-gray-200 last:border-b-0">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                            <Heart size={18} className="text-pink-600" />
+                                            PNC Visit {visitNum}
+                                        </h3>
+                                        {visitDate && (
+                                            <span className="text-sm text-gray-500 bg-pink-50 px-2 py-1 rounded">
+                                                {formatDate(visitDate)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    
+                                    {visitDate && (
+                                        <>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                <InfoRow label="Attendance Timing" value={patient[`${prefix}attendance_timing`]} />
+                                                <InfoRow label="Outcome" value={patient[`${prefix}outcome`]} />
+                                            </div>
+                                            
+                                            <div className="bg-pink-50 p-4 rounded-lg border border-pink-200 mb-4">
+                                                <p className="font-medium text-pink-800 mb-3">Maternal Care Services:</p>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                                                    {[
+                                                        { key: 'breastfeeding_counseling', label: 'Breastfeeding Counseling' },
+                                                        { key: 'nutrition_counseling', label: 'Nutrition Counseling' },
+                                                        { key: 'family_planning_counseling', label: 'Family Planning' },
+                                                        { key: 'blood_pressure_check', label: 'BP Check' },
+                                                        { key: 'iron_folate_given', label: 'Iron/Folate' },
+                                                        { key: 'vitamin_a_given', label: 'Vitamin A' },
+                                                    ].map(({ key, label }) => (
+                                                        <div key={key} className="flex items-center gap-2">
+                                                            {patient[`${prefix}${key}`] ? <CheckCircle size={16} className="text-green-500" /> : <XCircle size={16} className="text-gray-300" />}
+                                                            <span className={patient[`${prefix}${key}`] ? "text-green-700" : "text-gray-500"}>{label}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                                <p className="font-medium text-blue-800 mb-3">Newborn Care:</p>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                                                    {[
+                                                        { key: 'newborn_temp_check', label: 'Temperature' },
+                                                        { key: 'newborn_weight_check', label: 'Weight' },
+                                                        { key: 'newborn_cord_check', label: 'Cord Care' },
+                                                        { key: 'newborn_skin_check', label: 'Skin' },
+                                                        { key: 'newborn_eye_check', label: 'Eye Care' },
+                                                        { key: 'kmc_initiated', label: 'KMC Initiated' },
+                                                    ].map(({ key, label }) => (
+                                                        <div key={key} className="flex items-center gap-2">
+                                                            {patient[`${prefix}${key}`] ? <CheckCircle size={16} className="text-green-500" /> : <XCircle size={16} className="text-gray-300" />}
+                                                            <span className={patient[`${prefix}${key}`] ? "text-green-700" : "text-gray-500"}>{label}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                {patient[`${prefix}neonatal_complications`] && (
+                                                    <div className="mt-3 pt-3 border-t border-blue-200">
+                                                        <InfoRow label="Complications" value={patient[`${prefix}neonatal_complications`]} className="!border-b-0 !py-1" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })}
+                        {!patient.pnc_visit_1 && !patient.pnc_visit_2 && !patient.pnc_visit_3 && (
+                            <p className="text-gray-600 italic text-center py-4">No PNC visit records available.</p>
+                        )}
                     </Section>
 
                     {/* Family Planning */}
