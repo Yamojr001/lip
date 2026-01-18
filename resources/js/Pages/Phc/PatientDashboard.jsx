@@ -233,8 +233,19 @@ const AncForm = ({ patient, onClose }) => {
 };
 
 const DeliveryForm = ({ patient, onClose }) => {
+    const { t } = useTranslation();
+    const today = new Date().toISOString().split('T')[0];
+    
+    const getAgeRange = (age) => {
+        if (age >= 10 && age <= 14) return '10-14';
+        if (age >= 15 && age <= 19) return '15-19';
+        if (age >= 20 && age <= 34) return '20-34';
+        if (age >= 35 && age <= 49) return '35-49';
+        return 'Other';
+    };
+    
     const { data, setData, post, processing } = useForm({
-        date_of_delivery: new Date().toISOString().split('T')[0],
+        date_of_delivery: today,
         place_of_delivery: '',
         type_of_delivery: '',
         delivery_outcome: '',
@@ -242,6 +253,29 @@ const DeliveryForm = ({ patient, onClose }) => {
         mother_alive: 'Yes',
         mother_status: '',
         delivery_kits_received: false,
+        decision_seeking_care: '',
+        mode_of_booking: '',
+        location_type: '',
+        disability_if_any: '',
+        active_mgmt_labour: false,
+        mother_delivery_location: '',
+        baby_outcome: '',
+        baby_delivery_location: '',
+        baby_weight_kg: '',
+        baby_sex: '',
+        delivery_attendant: '',
+        attendant_name: '',
+        newborn_dried: false,
+        newborn_cord_clamped: false,
+        newborn_skin_to_skin: false,
+        newborn_breastfed_1hr: false,
+        newborn_eye_care: false,
+        newborn_vitamin_k: false,
+        newborn_bcg: false,
+        newborn_opv0: false,
+        newborn_hep_b0: false,
+        referred_from_other_facility: false,
+        referring_facility_name: '',
     });
 
     const handleSubmit = (e) => {
@@ -252,123 +286,233 @@ const DeliveryForm = ({ patient, onClose }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date of Delivery *</label>
-                <input
-                    type="date"
-                    value={data.date_of_delivery}
-                    onChange={(e) => setData('date_of_delivery', e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                    required
-                />
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Place of Delivery *</label>
-                <select
-                    value={data.place_of_delivery}
-                    onChange={(e) => setData('place_of_delivery', e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                    required
-                >
-                    <option value="">Select Place</option>
-                    <option value="Registered Facility">Registered Facility (PHC/Hospital)</option>
-                    <option value="Home">Home</option>
-                    <option value="Other Facility">Other Facility</option>
-                    <option value="Traditional Attendant">Traditional Attendant</option>
-                </select>
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type of Delivery *</label>
-                <select
-                    value={data.type_of_delivery}
-                    onChange={(e) => setData('type_of_delivery', e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                    required
-                >
-                    <option value="">Select Type</option>
-                    <option value="Normal (Vaginal)">Normal (Vaginal)</option>
-                    <option value="Cesarean Section">Cesarean Section</option>
-                    <option value="Assisted">Assisted</option>
-                    <option value="Breech">Breech</option>
-                </select>
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Outcome *</label>
-                <select
-                    value={data.delivery_outcome}
-                    onChange={(e) => setData('delivery_outcome', e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                    required
-                >
-                    <option value="">Select Outcome</option>
-                    <option value="Live birth">Live birth</option>
-                    <option value="Stillbirth">Stillbirth</option>
-                </select>
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Complications</label>
-                <select
-                    value={data.complication_if_any}
-                    onChange={(e) => setData('complication_if_any', e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                >
-                    <option value="No complication">No complication</option>
-                    <option value="Hemorrhage">Hemorrhage</option>
-                    <option value="Eclampsia">Eclampsia</option>
-                    <option value="Sepsis">Sepsis</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mother Alive *</label>
-                    <select
-                        value={data.mother_alive}
-                        onChange={(e) => setData('mother_alive', e.target.value)}
-                        className="w-full border rounded-lg p-3"
-                        required
-                    >
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mother Status *</label>
-                    <select
-                        value={data.mother_status}
-                        onChange={(e) => setData('mother_status', e.target.value)}
-                        className="w-full border rounded-lg p-3"
-                        required
-                    >
-                        <option value="">Select Status</option>
-                        <option value="Discharged home">Discharged home</option>
-                        <option value="Admitted">Admitted</option>
-                        <option value="Referred to other facility">Referred</option>
-                    </select>
+        <form onSubmit={handleSubmit} className="space-y-5 max-h-[75vh] overflow-y-auto pr-2">
+            <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-blue-800 mb-3">Patient Information</h4>
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                    <div><span className="font-medium">Name:</span> {patient.woman_name}</div>
+                    <div><span className="font-medium">Card No:</span> {patient.unique_id}</div>
+                    <div><span className="font-medium">Age:</span> {patient.age} yrs ({getAgeRange(patient.age)})</div>
                 </div>
             </div>
 
-            <label className="flex items-center gap-2 p-3 border rounded-lg">
-                <input
-                    type="checkbox"
-                    checked={data.delivery_kits_received}
-                    onChange={(e) => setData('delivery_kits_received', e.target.checked)}
-                    className="w-5 h-5"
-                />
-                <span>Delivery Kits Received</span>
-            </label>
+            <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-gray-800 mb-3">Pre-Delivery Information</h4>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Decision in Seeking Care</label>
+                        <select value={data.decision_seeking_care} onChange={(e) => setData('decision_seeking_care', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="">Select</option>
+                            <option value="Self">Self</option>
+                            <option value="Husband">Husband</option>
+                            <option value="Family">Family</option>
+                            <option value="Community">Community</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mode of Booking</label>
+                        <select value={data.mode_of_booking} onChange={(e) => setData('mode_of_booking', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="">Select</option>
+                            <option value="Booked">Booked</option>
+                            <option value="Unbooked">Unbooked</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Location Type</label>
+                        <select value={data.location_type} onChange={(e) => setData('location_type', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="">Select</option>
+                            <option value="Urban">Urban</option>
+                            <option value="Rural">Rural</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Disability (if any)</label>
+                        <input type="text" value={data.disability_if_any} onChange={(e) => setData('disability_if_any', e.target.value)} placeholder="None or specify" className="w-full border rounded p-2 text-sm" />
+                    </div>
+                </div>
+                <div className="mt-3">
+                    <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={data.referred_from_other_facility} onChange={(e) => setData('referred_from_other_facility', e.target.checked)} className="w-4 h-4" />
+                        <span className="text-sm">Referred from Other Facility</span>
+                    </label>
+                    {data.referred_from_other_facility && (
+                        <input type="text" placeholder="Referring Facility Name" value={data.referring_facility_name} onChange={(e) => setData('referring_facility_name', e.target.value)} className="w-full border rounded p-2 text-sm mt-2" />
+                    )}
+                </div>
+            </div>
 
-            <button
-                type="submit"
-                disabled={processing}
-                className="w-full py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 font-medium disabled:opacity-50"
-            >
+            <div className="bg-pink-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-pink-800 mb-3">Delivery Details</h4>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date of Delivery *</label>
+                        <input type="date" value={data.date_of_delivery} onChange={(e) => setData('date_of_delivery', e.target.value)} className="w-full border rounded p-2 text-sm" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Place of Delivery *</label>
+                        <select value={data.place_of_delivery} onChange={(e) => setData('place_of_delivery', e.target.value)} className="w-full border rounded p-2 text-sm" required>
+                            <option value="">Select</option>
+                            <option value="Registered Facility">Registered Facility</option>
+                            <option value="Home">Home</option>
+                            <option value="Other Facility">Other Facility</option>
+                            <option value="Traditional Attendant">Traditional Attendant</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Type of Delivery *</label>
+                        <select value={data.type_of_delivery} onChange={(e) => setData('type_of_delivery', e.target.value)} className="w-full border rounded p-2 text-sm" required>
+                            <option value="">Select</option>
+                            <option value="Normal (Vaginal)">Normal (Vaginal)</option>
+                            <option value="Cesarean Section">Cesarean Section</option>
+                            <option value="Assisted">Assisted</option>
+                            <option value="Breech">Breech</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Complications</label>
+                        <select value={data.complication_if_any} onChange={(e) => setData('complication_if_any', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="No complication">No complication</option>
+                            <option value="Hemorrhage">Hemorrhage</option>
+                            <option value="Eclampsia">Eclampsia</option>
+                            <option value="Sepsis">Sepsis</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="mt-3 flex items-center gap-4">
+                    <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={data.active_mgmt_labour} onChange={(e) => setData('active_mgmt_labour', e.target.checked)} className="w-4 h-4" />
+                        <span className="text-sm">Active Management of Labour</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={data.delivery_kits_received} onChange={(e) => setData('delivery_kits_received', e.target.checked)} className="w-4 h-4" />
+                        <span className="text-sm">Delivery Kits Received</span>
+                    </label>
+                </div>
+            </div>
+
+            <div className="bg-purple-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-purple-800 mb-3">Mother Outcome</h4>
+                <div className="grid grid-cols-3 gap-3">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mother Alive *</label>
+                        <select value={data.mother_alive} onChange={(e) => setData('mother_alive', e.target.value)} className="w-full border rounded p-2 text-sm" required>
+                            <option value="Yes">Yes (Alive)</option>
+                            <option value="No">No (Dead)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mother Delivery Location</label>
+                        <select value={data.mother_delivery_location} onChange={(e) => setData('mother_delivery_location', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="">Select</option>
+                            <option value="Registered Facility">Registered Facility</option>
+                            <option value="Other Facility">Other Facility</option>
+                            <option value="Home">Home</option>
+                            <option value="Traditional Attendant">Trad. Attendant/Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mother Status *</label>
+                        <select value={data.mother_status} onChange={(e) => setData('mother_status', e.target.value)} className="w-full border rounded p-2 text-sm" required>
+                            <option value="">Select</option>
+                            <option value="Discharged home">Discharged home</option>
+                            <option value="Admitted">Admitted</option>
+                            <option value="Referred to other facility">Referred</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-green-800 mb-3">Baby Information</h4>
+                <div className="grid grid-cols-3 gap-3">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Outcome *</label>
+                        <select value={data.delivery_outcome} onChange={(e) => setData('delivery_outcome', e.target.value)} className="w-full border rounded p-2 text-sm" required>
+                            <option value="">Select</option>
+                            <option value="Live birth">Live Birth</option>
+                            <option value="Stillbirth">Still Birth</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Baby Delivery Location</label>
+                        <select value={data.baby_delivery_location} onChange={(e) => setData('baby_delivery_location', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="">Select</option>
+                            <option value="Registered Facility">Registered Facility</option>
+                            <option value="Other Facility">Other Facility</option>
+                            <option value="Home">Home</option>
+                            <option value="Traditional Attendant">Trad. Attendant</option>
+                            {data.delivery_outcome === 'Stillbirth' && (
+                                <>
+                                    <option value="Facility">Facility (Stillbirth)</option>
+                                    <option value="Non-Facility">Non-Facility (Stillbirth)</option>
+                                </>
+                            )}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Baby Sex</label>
+                        <select value={data.baby_sex} onChange={(e) => setData('baby_sex', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="">Select</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Baby Weight (kg)</label>
+                        <input type="number" step="0.01" min="0.5" max="7" placeholder="e.g., 3.2" value={data.baby_weight_kg} onChange={(e) => setData('baby_weight_kg', e.target.value)} className="w-full border rounded p-2 text-sm" />
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-yellow-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-yellow-800 mb-3">Who Took Delivery</h4>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Attendant</label>
+                        <select value={data.delivery_attendant} onChange={(e) => setData('delivery_attendant', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="">Select</option>
+                            <option value="Doctor">Doctor</option>
+                            <option value="Nurse/Midwife">Nurse/Midwife</option>
+                            <option value="CHEW">CHEW</option>
+                            <option value="CHO">CHO</option>
+                            <option value="Traditional Birth Attendant">Trad. Birth Attendant</option>
+                            <option value="Relative">Relative</option>
+                            <option value="Self">Self</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Attendant Name</label>
+                        <input type="text" value={data.attendant_name} onChange={(e) => setData('attendant_name', e.target.value)} placeholder="Name of person" className="w-full border rounded p-2 text-sm" />
+                    </div>
+                </div>
+            </div>
+
+            {data.delivery_outcome === 'Live birth' && (
+                <div className="bg-teal-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-teal-800 mb-3">Immediate Newborn Care Provided</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                        {[
+                            { key: 'newborn_dried', label: 'Dried' },
+                            { key: 'newborn_cord_clamped', label: 'Cord Clamped' },
+                            { key: 'newborn_skin_to_skin', label: 'Skin-to-Skin' },
+                            { key: 'newborn_breastfed_1hr', label: 'Breastfed within 1hr' },
+                            { key: 'newborn_eye_care', label: 'Eye Care' },
+                            { key: 'newborn_vitamin_k', label: 'Vitamin K' },
+                            { key: 'newborn_bcg', label: 'BCG' },
+                            { key: 'newborn_opv0', label: 'OPV 0' },
+                            { key: 'newborn_hep_b0', label: 'Hep B 0' },
+                        ].map(({ key, label }) => (
+                            <label key={key} className="flex items-center gap-2 p-2 border rounded bg-white cursor-pointer hover:bg-teal-100">
+                                <input type="checkbox" checked={data[key]} onChange={(e) => setData(key, e.target.checked)} className="w-4 h-4 text-teal-600" />
+                                <span className="text-sm">{label}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <button type="submit" disabled={processing} className="w-full py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 font-medium disabled:opacity-50">
                 {processing ? 'Saving...' : 'Record Delivery'}
             </button>
         </form>

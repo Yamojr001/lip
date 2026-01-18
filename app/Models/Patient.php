@@ -103,6 +103,13 @@ class Patient extends Model
         'place_of_delivery', 'delivery_kits_received', 'type_of_delivery', 
         'complication_if_any', 'delivery_outcome', 'mother_alive', 'mother_status',
         'date_of_delivery',
+        'decision_seeking_care', 'mode_of_booking', 'location_type', 'disability_if_any',
+        'active_mgmt_labour', 'mother_delivery_location',
+        'baby_outcome', 'baby_delivery_location', 'baby_weight_kg', 'baby_sex',
+        'delivery_attendant', 'attendant_name',
+        'newborn_dried', 'newborn_cord_clamped', 'newborn_skin_to_skin', 'newborn_breastfed_1hr',
+        'newborn_eye_care', 'newborn_vitamin_k', 'newborn_bcg', 'newborn_opv0', 'newborn_hep_b0',
+        'referred_from_other_facility', 'referring_facility_name',
 
         // --- Postnatal Checkup (3 visits) ---
         'pnc_visit_1', 'pnc_visit_2', 'pnc_visit_3',
@@ -286,6 +293,17 @@ class Patient extends Model
         
         // Boolean fields - Delivery & Family Planning
         'delivery_kits_received' => 'boolean',
+        'active_mgmt_labour' => 'boolean',
+        'newborn_dried' => 'boolean',
+        'newborn_cord_clamped' => 'boolean',
+        'newborn_skin_to_skin' => 'boolean',
+        'newborn_breastfed_1hr' => 'boolean',
+        'newborn_eye_care' => 'boolean',
+        'newborn_vitamin_k' => 'boolean',
+        'newborn_bcg' => 'boolean',
+        'newborn_opv0' => 'boolean',
+        'newborn_hep_b0' => 'boolean',
+        'referred_from_other_facility' => 'boolean',
         'insurance_satisfaction' => 'boolean',
         'fp_using' => 'boolean',
         'fp_male_condom' => 'boolean',
