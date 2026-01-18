@@ -105,7 +105,7 @@ class Patient extends Model
         'date_of_delivery',
         'decision_seeking_care', 'mode_of_booking', 'location_type', 'disability_if_any',
         'active_mgmt_labour', 'mother_delivery_location',
-        'baby_outcome', 'baby_delivery_location', 'baby_weight_kg', 'baby_sex',
+        'baby_delivery_location', 'baby_weight_kg', 'baby_sex',
         'delivery_attendant', 'attendant_name',
         'newborn_dried', 'newborn_cord_clamped', 'newborn_skin_to_skin', 'newborn_breastfed_1hr',
         'newborn_eye_care', 'newborn_vitamin_k', 'newborn_bcg', 'newborn_opv0', 'newborn_hep_b0',

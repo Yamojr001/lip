@@ -1583,7 +1583,6 @@ class PhcStaffController extends Controller
             'disability_if_any' => 'nullable|string|max:200',
             'active_mgmt_labour' => 'boolean',
             'mother_delivery_location' => 'nullable|in:Registered Facility,Other Facility,Home,Traditional Attendant',
-            'baby_outcome' => 'nullable|in:Live Birth,Still Birth',
             'baby_delivery_location' => 'nullable|in:Registered Facility,Other Facility,Home,Traditional Attendant,Facility,Non-Facility',
             'baby_weight_kg' => 'nullable|numeric|min:0.5|max:7',
             'baby_sex' => 'nullable|in:Male,Female',
@@ -1602,7 +1601,21 @@ class PhcStaffController extends Controller
             'referring_facility_name' => 'nullable|string|max:200',
         ]);
 
-        $patient->update($validated);
+        $updateData = $validated;
+        $updateData['delivery_kits_received'] = $request->boolean('delivery_kits_received');
+        $updateData['active_mgmt_labour'] = $request->boolean('active_mgmt_labour');
+        $updateData['newborn_dried'] = $request->boolean('newborn_dried');
+        $updateData['newborn_cord_clamped'] = $request->boolean('newborn_cord_clamped');
+        $updateData['newborn_skin_to_skin'] = $request->boolean('newborn_skin_to_skin');
+        $updateData['newborn_breastfed_1hr'] = $request->boolean('newborn_breastfed_1hr');
+        $updateData['newborn_eye_care'] = $request->boolean('newborn_eye_care');
+        $updateData['newborn_vitamin_k'] = $request->boolean('newborn_vitamin_k');
+        $updateData['newborn_bcg'] = $request->boolean('newborn_bcg');
+        $updateData['newborn_opv0'] = $request->boolean('newborn_opv0');
+        $updateData['newborn_hep_b0'] = $request->boolean('newborn_hep_b0');
+        $updateData['referred_from_other_facility'] = $request->boolean('referred_from_other_facility');
+
+        $patient->update($updateData);
 
         return redirect()->back()->with('success', 'Delivery information recorded successfully!');
     }
