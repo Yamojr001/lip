@@ -1,4 +1,4 @@
-modules = ["php-8.2", "nodejs-20", "postgresql-16"]
+modules = ["nodejs-20", "php-8.2", "web"]
 [agent]
 expertMode = true
 
@@ -11,9 +11,10 @@ APP_DEBUG = "true"
 APP_URL = "http://0.0.0.0:5000"
 DB_CONNECTION = "pgsql"
 SESSION_DRIVER = "file"
-QUEUE_CONNECTION = "database"
-CACHE_STORE = "database"
+QUEUE_CONNECTION = "sync"
+CACHE_STORE = "file"
 MAIL_MAILER = "log"
+APP_KEY = "base64:UJOxsJXgEvrSkrdlxYkrkd2E++VWzzSdRBaz1zfrojg="
 
 [workflows]
 runButton = "Project"
