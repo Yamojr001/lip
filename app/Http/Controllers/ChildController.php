@@ -50,7 +50,7 @@ class ChildController extends Controller
     {
         $user = auth()->user();
         
-        if (!$user->phc_id) {
+        if (!$user->phc_id && $user->role !== 'admin') {
             return redirect()->route('phc.dashboard')
                 ->with('error', 'Your account is not associated with any PHC facility.');
         }

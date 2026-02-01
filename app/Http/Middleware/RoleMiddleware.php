@@ -12,9 +12,9 @@ class RoleMiddleware
      *
      * Example: ->middleware('role:admin')
      */
-    public function handle(Request $request, Closure $next, $role)
+    public function handle(Request $request, Closure $next, ...$roles)
     {
-        if (! $request->user() || $request->user()->role !== $role) {
+        if (! $request->user() || ! in_array($request->user()->role, $roles)) {
             abort(403, 'Unauthorized.');
         }
 
