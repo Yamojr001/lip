@@ -4,7 +4,7 @@ import PhcStaffLayout from "@/Layouts/PhcStaffLayout";
 import {
   Search, Edit, Trash2, RefreshCw, Users, Baby, Heart, Calendar,
   TrendingUp, Activity, Stethoscope, Shield, Clock, AlertCircle,
-  CheckCircle, XCircle, ArrowUp, ArrowDown, Home, Hospital, UserPlus
+  CheckCircle, XCircle, ArrowUp, ArrowDown, Home, Hospital, UserPlus, Plus
 } from "lucide-react";
 import { Line, Pie, Bar, Doughnut } from "react-chartjs-2";
 import {
