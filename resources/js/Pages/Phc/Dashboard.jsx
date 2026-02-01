@@ -4,7 +4,7 @@ import PhcStaffLayout from "@/Layouts/PhcStaffLayout";
 import {
   Search, Edit, Trash2, RefreshCw, Users, Baby, Heart, Calendar,
   TrendingUp, Activity, Stethoscope, Shield, Clock, AlertCircle,
-  CheckCircle, XCircle, ArrowUp, ArrowDown, Home, Hospital, UserPlus, Plus
+  CheckCircle, XCircle, ArrowUp, ArrowDown, Home, Hospital, UserPlus
 } from "lucide-react";
 import { Line, Pie, Bar, Doughnut } from "react-chartjs-2";
 import {
@@ -138,9 +138,6 @@ export default function PhcDashboard() {
             </Link>
             <Link href={route('phc.create-patient')} className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
               <UserPlus className="-ml-1 mr-2 h-5 w-5" /> Register Patient
-            </Link>
-            <Link href={route('phc.children.create')} className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700">
-              <Plus className="-ml-1 mr-2 h-5 w-5" /> Register Child
             </Link>
           </div>
         </div>

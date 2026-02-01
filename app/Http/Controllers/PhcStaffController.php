@@ -24,8 +24,8 @@ class PhcStaffController extends Controller
     {
         $user = auth()->user();
         
-        // Check if user has a PHC (Admins can skip)
-        if (!$user->phc_id && $user->role !== 'admin') {
+        // Check if user has a PHC
+        if (!$user->phc_id) {
             return redirect()->route('phc.dashboard')
                 ->with('error', 'Your account is not associated with any PHC facility. Please contact administrator.');
         }

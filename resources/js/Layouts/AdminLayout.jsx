@@ -101,8 +101,6 @@ export default function AdminLayout({ children, title = "Dashboard" }) {
           <NavItem href="/admin/manage-locations" icon={MapPin} label={t('nav.manageLocations')} />
           <NavItem href="/admin/manage-facilities" icon={Hospital} label={t('nav.manageFacilities')} />
           <NavItem href="/admin/records" icon={FileText} label={t('nav.records')} />
-          <NavItem href={route('phc.create-patient')} icon={UserPlus} label={t('nav.registerPatient')} />
-          <NavItem href={route('phc.children.create')} icon={Baby} label={t('nav.registerChildren') || 'Register Child'} />
         </nav>
 
         <div className="p-4 border-t mt-auto">

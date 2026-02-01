@@ -15,7 +15,6 @@ const translations = {
             language: 'Language',
             findPatient: 'Find Patient',
             registerPatient: 'Register Patient',
-            registerChildren: 'Register Children',
             children: 'Children',
             myRecords: 'My Records',
             allPatients: 'All Patients',
