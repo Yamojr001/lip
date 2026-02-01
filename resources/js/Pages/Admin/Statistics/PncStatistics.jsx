@@ -1,13 +1,99 @@
-import React from "react";
-import { usePage, Link } from "@inertiajs/react";
+import React, { useState } from "react";
+import { usePage, Link, router } from "@inertiajs/react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { 
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
     PieChart, Pie, Cell
 } from 'recharts';
-import { Heart, Users, Activity, TrendingUp, ArrowLeft, Download, Baby, Stethoscope } from 'lucide-react';
+import { Heart, Users, Activity, TrendingUp, ArrowLeft, Download, Baby, Stethoscope, Filter as FilterIcon } from 'lucide-react';
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00C49F'];
+
+// Filter Component
+const FilterSection = ({ filters, dropdowns, onFilterChange }) => {
+    const [localFilters, setLocalFilters] = useState(filters);
+
+    const handleFilterChange = (key, value) => {
+        const newFilters = { ...localFilters, [key]: value };
+        if (key === 'lga_id') {
+            newFilters.ward_id = 'all';
+            newFilters.phc_id = 'all';
+        } else if (key === 'ward_id') {
+            newFilters.phc_id = 'all';
+        }
+        setLocalFilters(newFilters);
+    };
+
+    const applyFilters = () => {
+        onFilterChange(localFilters);
+    };
+
+    const resetFilters = () => {
+        const defaultFilters = {
+            lga_id: 'all',
+            ward_id: 'all',
+            phc_id: 'all',
+            start_date: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
+            end_date: new Date().toISOString().split('T')[0]
+        };
+        setLocalFilters(defaultFilters);
+        onFilterChange(defaultFilters);
+    };
+
+    const wardsInLGA = localFilters.lga_id !== 'all' 
+        ? dropdowns.wards.filter(ward => ward.lga_id == localFilters.lga_id)
+        : dropdowns.wards;
+
+    const facilitiesInWard = localFilters.ward_id !== 'all'
+        ? dropdowns.phcs.filter(phc => phc.ward_id == localFilters.ward_id)
+        : dropdowns.phcs;
+
+    return (
+        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 mb-6">
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                    <FilterIcon className="h-5 w-5 text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">Filter Data</h3>
+                </div>
+                <div className="flex space-x-2">
+                    <button onClick={resetFilters} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition">Reset</button>
+                    <button onClick={applyFilters} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Apply Filters</button>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">LGA</label>
+                    <select value={localFilters.lga_id} onChange={(e) => handleFilterChange('lga_id', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="all">All LGAs</option>
+                        {dropdowns.lgas.map(lga => <option key={lga.id} value={lga.id}>{lga.name}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ward</label>
+                    <select value={localFilters.ward_id} onChange={(e) => handleFilterChange('ward_id', e.target.value)} disabled={localFilters.lga_id === 'all'} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                        <option value="all">All Wards</option>
+                        {wardsInLGA.map(ward => <option key={ward.id} value={ward.id}>{ward.name}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Facility</label>
+                    <select value={localFilters.phc_id} onChange={(e) => handleFilterChange('phc_id', e.target.value)} disabled={localFilters.ward_id === 'all'} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                        <option value="all">All Facilities</option>
+                        {facilitiesInWard.map(phc => <option key={phc.id} value={phc.id}>{phc.clinic_name}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <input type="date" value={localFilters.start_date} onChange={(e) => handleFilterChange('start_date', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                    <input type="date" value={localFilters.end_date} onChange={(e) => handleFilterChange('end_date', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" />
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const StatCard = ({ title, value, unit = '', icon: Icon, color }) => (
     <div className={`bg-white p-6 rounded-2xl shadow-lg border-l-4 ${color}`}>
@@ -31,7 +117,11 @@ const ChartCard = ({ title, children }) => (
 );
 
 export default function PncStatistics() {
-    const { statistics = {}, pncData = {} } = usePage().props;
+    const { statistics = {}, pncData = {}, dropdowns = {}, filters: initialFilters = {} } = usePage().props;
+
+    const handleFilterChange = (newFilters) => {
+        router.get(route('admin.statistics.pnc'), newFilters, { preserveState: true, replace: true });
+    };
 
     const pncCompletionData = [
         { name: 'PNC1', value: pncData.pnc1_received || 0 },
@@ -61,6 +151,8 @@ export default function PncStatistics() {
                         Export Data
                     </a>
                 </div>
+
+                <FilterSection filters={initialFilters} dropdowns={dropdowns} onFilterChange={handleFilterChange} />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <StatCard title="Total Delivered" value={statistics.detailedCounts?.totalDelivered || 0} icon={Baby} color="border-l-4 border-pink-600" />

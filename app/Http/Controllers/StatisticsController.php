@@ -1023,7 +1023,19 @@ class StatisticsController extends Controller
 
     public function ancStatistics(Request $request)
     {
-        $patients = Patient::all();
+        $lgaId = $request->input('lga_id', 'all');
+        $wardId = $request->input('ward_id', 'all');
+        $phcId = $request->input('phc_id', 'all');
+        $startDate = $request->input('start_date', now()->subYear()->format('Y-m-d'));
+        $endDate = $request->input('end_date', now()->format('Y-m-d'));
+
+        $query = Patient::query();
+        if ($lgaId !== 'all') $query->where('lga_id', $lgaId);
+        if ($wardId !== 'all') $query->where('ward_id', $wardId);
+        if ($phcId !== 'all') $query->where('health_facility_id', $phcId);
+        $query->whereBetween('date_of_registration', [$startDate, $endDate]);
+        
+        $patients = $query->get();
         $totalRegistered = $patients->count();
         
         $ancVisitsBreakdown = [];
@@ -1058,12 +1070,36 @@ class StatisticsController extends Controller
                 'ancVisitCompletion' => $ancVisitCompletion,
                 'hivStatus' => $hivStatus,
             ],
+            'dropdowns' => [
+                'lgas' => Lga::all(['id', 'name']),
+                'wards' => Ward::all(['id', 'lga_id', 'name']),
+                'phcs' => Phc::all(['id', 'ward_id', 'clinic_name']),
+            ],
+            'filters' => [
+                'lga_id' => $lgaId,
+                'ward_id' => $wardId,
+                'phc_id' => $phcId,
+                'start_date' => $startDate,
+                'end_date' => $endDate
+            ],
         ]);
     }
 
     public function pncStatistics(Request $request)
     {
-        $patients = Patient::whereNotNull('date_of_delivery')->get();
+        $lgaId = $request->input('lga_id', 'all');
+        $wardId = $request->input('ward_id', 'all');
+        $phcId = $request->input('phc_id', 'all');
+        $startDate = $request->input('start_date', now()->subYear()->format('Y-m-d'));
+        $endDate = $request->input('end_date', now()->format('Y-m-d'));
+
+        $query = Patient::query()->whereNotNull('date_of_delivery');
+        if ($lgaId !== 'all') $query->where('lga_id', $lgaId);
+        if ($wardId !== 'all') $query->where('ward_id', $wardId);
+        if ($phcId !== 'all') $query->where('health_facility_id', $phcId);
+        $query->whereBetween('date_of_registration', [$startDate, $endDate]);
+        
+        $patients = $query->get();
         $totalDelivered = $patients->count();
         
         $pnc1Received = $patients->whereNotNull('pnc_visit_1')->count();
@@ -1116,12 +1152,36 @@ class StatisticsController extends Controller
                     'lbw' => 0,
                 ],
             ],
+            'dropdowns' => [
+                'lgas' => Lga::all(['id', 'name']),
+                'wards' => Ward::all(['id', 'lga_id', 'name']),
+                'phcs' => Phc::all(['id', 'ward_id', 'clinic_name']),
+            ],
+            'filters' => [
+                'lga_id' => $lgaId,
+                'ward_id' => $wardId,
+                'phc_id' => $phcId,
+                'start_date' => $startDate,
+                'end_date' => $endDate
+            ],
         ]);
     }
 
     public function fpStatistics(Request $request)
     {
-        $patients = Patient::all();
+        $lgaId = $request->input('lga_id', 'all');
+        $wardId = $request->input('ward_id', 'all');
+        $phcId = $request->input('phc_id', 'all');
+        $startDate = $request->input('start_date', now()->subYear()->format('Y-m-d'));
+        $endDate = $request->input('end_date', now()->format('Y-m-d'));
+
+        $query = Patient::query();
+        if ($lgaId !== 'all') $query->where('lga_id', $lgaId);
+        if ($wardId !== 'all') $query->where('ward_id', $wardId);
+        if ($phcId !== 'all') $query->where('health_facility_id', $phcId);
+        $query->whereBetween('date_of_registration', [$startDate, $endDate]);
+        
+        $patients = $query->get();
         $totalRegistered = $patients->count();
         
         $fpUptake = $patients->where('fp_uptake', true)->count();
@@ -1151,13 +1211,48 @@ class StatisticsController extends Controller
                 'newAcceptors' => 0,
                 'revisits' => 0,
             ],
+            'dropdowns' => [
+                'lgas' => Lga::all(['id', 'name']),
+                'wards' => Ward::all(['id', 'lga_id', 'name']),
+                'phcs' => Phc::all(['id', 'ward_id', 'clinic_name']),
+            ],
+            'filters' => [
+                'lga_id' => $lgaId,
+                'ward_id' => $wardId,
+                'phc_id' => $phcId,
+                'start_date' => $startDate,
+                'end_date' => $endDate
+            ],
         ]);
     }
 
     public function nutritionStatistics(Request $request)
     {
-        $children = \App\Models\Child::with('nutritionLogs')->get();
-        $logs = \App\Models\ChildNutritionLog::all();
+        $lgaId = $request->input('lga_id', 'all');
+        $wardId = $request->input('ward_id', 'all');
+        $phcId = $request->input('phc_id', 'all');
+        $startDate = $request->input('start_date', now()->subYear()->format('Y-m-d'));
+        $endDate = $request->input('end_date', now()->format('Y-m-d'));
+
+        $query = \App\Models\ChildNutritionLog::query();
+        if ($lgaId !== 'all') {
+            $query->whereHas('child', function($q) use ($lgaId) {
+                $q->where('lga_id', $lgaId);
+            });
+        }
+        if ($wardId !== 'all') {
+            $query->whereHas('child', function($q) use ($wardId) {
+                $q->where('ward_id', $wardId);
+            });
+        }
+        if ($phcId !== 'all') {
+            $query->whereHas('child', function($q) use ($phcId) {
+                $q->where('phc_id', $phcId);
+            });
+        }
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+        
+        $logs = $query->get();
         
         $totalAssessed = $logs->count();
         $normalCount = $logs->where('nutritional_status', 'Normal')->count();
@@ -1188,12 +1283,36 @@ class StatisticsController extends Controller
                 'samRecovered' => $logs->where('sam_outcome', 'Recovered')->count(),
                 'samDefaulted' => $logs->where('sam_outcome', 'Defaulted')->count(),
             ],
+            'dropdowns' => [
+                'lgas' => Lga::all(['id', 'name']),
+                'wards' => Ward::all(['id', 'lga_id', 'name']),
+                'phcs' => Phc::all(['id', 'ward_id', 'clinic_name']),
+            ],
+            'filters' => [
+                'lga_id' => $lgaId,
+                'ward_id' => $wardId,
+                'phc_id' => $phcId,
+                'start_date' => $startDate,
+                'end_date' => $endDate
+            ],
         ]);
     }
 
     public function immunizationStatistics(Request $request)
     {
-        $children = \App\Models\Child::all();
+        $lgaId = $request->input('lga_id', 'all');
+        $wardId = $request->input('ward_id', 'all');
+        $phcId = $request->input('phc_id', 'all');
+        $startDate = $request->input('start_date', now()->subYear()->format('Y-m-d'));
+        $endDate = $request->input('end_date', now()->format('Y-m-d'));
+
+        $query = \App\Models\Child::query();
+        if ($lgaId !== 'all') $query->where('lga_id', $lgaId);
+        if ($wardId !== 'all') $query->where('ward_id', $wardId);
+        if ($phcId !== 'all') $query->where('phc_id', $phcId);
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+        
+        $children = $query->get();
         $totalChildren = $children->count();
         
         $immunizationData = [
@@ -1240,6 +1359,18 @@ class StatisticsController extends Controller
             ],
             'statistics' => [
                 'bcgImmunizationRate' => $totalChildren > 0 ? round(($immunizationData['bcg'] / $totalChildren) * 100, 1) : 0,
+            ],
+            'dropdowns' => [
+                'lgas' => Lga::all(['id', 'name']),
+                'wards' => Ward::all(['id', 'lga_id', 'name']),
+                'phcs' => Phc::all(['id', 'ward_id', 'clinic_name']),
+            ],
+            'filters' => [
+                'lga_id' => $lgaId,
+                'ward_id' => $wardId,
+                'phc_id' => $phcId,
+                'start_date' => $startDate,
+                'end_date' => $endDate
             ],
         ]);
     }
