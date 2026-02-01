@@ -89,7 +89,7 @@ export default function RegisterPatient({ lgas, wards, phcFacilities }) {
                                 <InputField label="Age" name="age" type="number" required min="15" max="50" />
                                 <InputField label="Can Read/Write?" name="literacy_status" required options={[
                                     { value: "Literate", label: "Yes (Literate)" },
-                                    { value: "Non-literate", label: "No (Non-literate)" }
+                                    { value: "Not literate", label: "No (Not literate)" }
                                 ]} />
                                 <InputField label="Phone Number" name="phone_number" type="tel" required placeholder="08012345678" />
                                 <InputField label="Preferred Language" name="preferred_language" placeholder="e.g., Hausa, English" />
@@ -102,6 +102,7 @@ export default function RegisterPatient({ lgas, wards, phcFacilities }) {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <InputField label="LGA" name="lga_id" required options={sortedLgas.map(lga => ({ value: lga.id, label: lga.name }))} />
                                 <InputField label="Ward" name="ward_id" required options={filteredWards.map(ward => ({ value: ward.id, label: ward.name }))} disabled={!data.lga_id} />
+                                <InputField label="Community/Village" name="community" required placeholder="e.g., Ungogo Gabas" />
                                 <div className="md:col-span-2">
                                     <InputField label="Residential Address" name="address" required placeholder="House/Street address" />
                                 </div>

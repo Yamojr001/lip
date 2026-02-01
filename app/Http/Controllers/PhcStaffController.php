@@ -1364,7 +1364,7 @@ class PhcStaffController extends Controller
             'phone_number' => 'required|string|max:20',
             'husband_name' => 'nullable|string|max:255',
             'husband_phone' => 'nullable|string|max:20',
-            'community' => 'nullable|string|max:255',
+            'community' => 'required|string|max:255',
             'address' => 'required|string',
             'lga_id' => 'required|exists:lgas,id',
             'ward_id' => 'required|exists:wards,id',
@@ -1421,7 +1421,7 @@ class PhcStaffController extends Controller
             // Child Immunization
             'child_name' => 'nullable|string|max:255',
             'child_dob' => 'nullable|date',
-            'child_gender' => 'nullable|in:Male,Female',
+            'child_sex' => 'nullable|in:Male,Female',
 
             // Notes
             'remark' => 'nullable|string',
