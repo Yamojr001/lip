@@ -35,7 +35,7 @@ Route::get('/view-phcs', function () {
 })->name('view.phcs');
 
 // 👩‍⚕️ PHC STAFF ROUTES
-Route::middleware(['auth', 'verified', 'role:phc_staff'])
+Route::middleware(['auth', 'verified', 'role:phc_staff,admin'])
     ->prefix('phc')
     ->name('phc.')
     ->group(function () {
