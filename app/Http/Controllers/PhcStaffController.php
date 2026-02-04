@@ -1472,9 +1472,9 @@ class PhcStaffController extends Controller
         if ($search && strlen($search) >= 2) {
             $patients = Patient::query()
                 ->where(function ($q) use ($search) {
-                    $q->where('woman_name', 'ilike', "%{$search}%")
-                        ->orWhere('unique_id', 'ilike', "%{$search}%")
-                        ->orWhere('phone_number', 'ilike', "%{$search}%");
+                    $q->where('woman_name', 'like', "%{$search}%")
+                        ->orWhere('unique_id', 'like', "%{$search}%")
+                        ->orWhere('phone_number', 'like', "%{$search}%");
                 })
                 ->with(['lga', 'ward', 'phc'])
                 ->limit(20)
