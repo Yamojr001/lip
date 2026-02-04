@@ -482,16 +482,12 @@ class PhcStaffController extends Controller
         $patients = $query->with(['lga', 'ward', 'healthFacility'])->get();
         $stats = $this->getPhcStatistics($phcId);
 
-        return response()->json([
-            'message' => 'Report generation initiated.',
-            'report_type' => $reportType,
-            'period' => $startDate && $endDate ? "$startDate to $endDate" : 'All Time',
-            'include_details' => $includeDetails,
-            'include_statistics' => $includeStatistics,
-            'total_records' => $patients->count(),
-            'statistics_snapshot' => $stats,
-            'generated_at' => now()->toDateTimeString(),
-        ]);
+        $fileName = 'phc_report_' . now()->format('Y_m_d') . '.csv';
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\MaternityReportExport($reportType, $patients->toArray(), $stats, [], ['start_date' => $startDate, 'end_date' => $endDate]),
+            $fileName,
+            \Maatwebsite\Excel\Excel::CSV
+        );
     }
 
     /**

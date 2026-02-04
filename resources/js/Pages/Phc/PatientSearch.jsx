@@ -1,10 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { router, Link } from "@inertiajs/react";
 import PhcStaffLayout from "@/Layouts/PhcStaffLayout";
 import { Search, User, Phone, MapPin, Calendar, Eye, Plus } from "lucide-react";
 
 export default function PatientSearch({ patients, search }) {
     const [searchQuery, setSearchQuery] = useState(search || "");
+
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (searchQuery !== (search || "")) {
+                router.get(route("phc.search"), { search: searchQuery }, { 
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true
+                });
+            }
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery]);
 
     const handleSearch = (e) => {
         e.preventDefault();

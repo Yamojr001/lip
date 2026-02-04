@@ -67,7 +67,8 @@ export default function MyRecords() {
           p.unique_id?.toLowerCase().includes(searchTerm) ||
           p.phone_number?.toLowerCase().includes(searchTerm) ||
           (p.lga?.name && p.lga.name.toLowerCase().includes(searchTerm)) ||
-          (p.ward?.name && p.ward.name.toLowerCase().includes(searchTerm))
+          (p.ward?.name && p.ward.name.toLowerCase().includes(searchTerm)) ||
+          (p.community && p.community.toLowerCase().includes(searchTerm))
         );
       })
     : patientResults; // Show all records from current page when no search

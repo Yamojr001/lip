@@ -13,7 +13,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-class MaternityReportExport implements WithMultipleSheets
+class MaternityReportExport implements WithMultipleSheets, \Maatwebsite\Excel\Concerns\FromCollection
 {
     protected $reportType;
     protected $data;
@@ -30,18 +30,17 @@ class MaternityReportExport implements WithMultipleSheets
         $this->filters = $filters;
     }
 
+    public function collection()
+    {
+        return (new RawDataSheet($this->data))->collection();
+    }
+
     public function sheets(): array
     {
         $sheets = [];
 
-        // Sheet 1: Summary Dashboard
-        $sheets[] = new SummarySheet($this->summary, $this->charts);
-
-        // Sheet 2: Raw Data
+        // Sheet 1: Raw Data
         $sheets[] = new RawDataSheet($this->data);
-
-        // Sheet 3: Charts Data
-        $sheets[] = new ChartsDataSheet($this->charts);
 
         return $sheets;
     }

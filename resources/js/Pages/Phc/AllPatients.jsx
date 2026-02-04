@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePage, Link, router } from "@inertiajs/react";
 import PhcStaffLayout from "@/Layouts/PhcStaffLayout";
 import {
@@ -45,21 +45,30 @@ export default function AllPatients() {
   const [search, setSearch] = useState(filters.search || "");
   
   // Handle search with debounce
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (search !== (filters.search || "")) {
+        if (search.trim()) {
+          router.get(route('phc.all-patients'), { search: search }, {
+            preserveState: true,
+            replace: true,
+            preserveScroll: true
+          });
+        } else {
+          router.get(route('phc.all-patients'), {}, {
+            preserveState: true,
+            replace: true,
+            preserveScroll: true
+          });
+        }
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [search]);
+
   const handleSearch = (value) => {
     setSearch(value);
-    
-    if (value.trim()) {
-      router.get(route('phc.all-patients'), { search: value }, {
-        preserveState: true,
-        replace: true,
-      });
-    } else {
-      // If search is empty, clear results
-      router.get(route('phc.all-patients'), {}, {
-        preserveState: true,
-        replace: true,
-      });
-    }
   };
 
   // Handle view patient

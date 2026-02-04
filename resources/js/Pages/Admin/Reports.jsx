@@ -173,7 +173,7 @@ const Reports = ({ auth, reports = [], summary = {}, charts = {}, filters = {} }
                                         disabled={processing || reports.length === 0}
                                         startIcon={<Download />}
                                     >
-                                        Export Excel
+                                        Export CSV
                                     </Button>
                                 </Stack>
                             </Grid>
