@@ -545,11 +545,35 @@ class NutritionReportController extends Controller
 
         $reports = $query->get();
 
-        // For now, return JSON. You can implement CSV/Excel export later
-        return response()->json([
-            'data' => $reports,
-            'total' => $reports->count(),
-            'filters' => $request->all(),
+        $callback = function() use ($reports) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, [
+                'PHC', 'LGA', 'Ward', 'Year', 'Month', 
+                'Total Screened', 'MAM', 'SAM', 'Oedema', 
+                'RUTF Given', 'MNP Given', 'Submitted At'
+            ]);
+
+            foreach ($reports as $report) {
+                fputcsv($file, [
+                    $report->phc->clinic_name ?? 'N/A',
+                    $report->phc->ward->lga->name ?? 'N/A',
+                    $report->phc->ward->name ?? 'N/A',
+                    $report->year,
+                    $report->month,
+                    $report->total_children_screened,
+                    $report->total_mam,
+                    $report->total_sam,
+                    $report->total_oedema,
+                    $report->rutf_given,
+                    $report->mnp_given,
+                    $report->submitted_at
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->streamDownload($callback, 'nutrition_reports_' . now()->format('Y-m-d') . '.csv', [
+            'Content-Type' => 'text/csv',
         ]);
     }
 }

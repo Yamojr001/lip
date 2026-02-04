@@ -214,10 +214,33 @@ class AdminVaccineController extends Controller
 
         $reports = $query->orderBy('reporting_date', 'desc')->get();
 
-        return response()->json([
-            'message' => 'Export functionality to be implemented',
-            'count' => $reports->count(),
-            'filters' => $request->all()
+        $callback = function() use ($reports) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, [
+                'PHC', 'LGA', 'Ward', 'Month/Year', 'Reporting Date', 
+                'Total Doses Used', 'Total Doses Discarded', 'Stock Out Count', 
+                'Wastage Rate (%)', 'Status'
+            ]);
+
+            foreach ($reports as $report) {
+                fputcsv($file, [
+                    $report->phc->clinic_name ?? 'N/A',
+                    $report->phc->lga->name ?? 'N/A',
+                    $report->phc->ward->name ?? 'N/A',
+                    $report->month_year,
+                    $report->reporting_date,
+                    $report->total_doses_used,
+                    $report->total_doses_discarded,
+                    $report->stock_out_count,
+                    $report->vaccine_wastage_rate,
+                    $report->status
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->streamDownload($callback, 'vaccine_reports_' . now()->format('Y-m-d') . '.csv', [
+            'Content-Type' => 'text/csv',
         ]);
     }
 

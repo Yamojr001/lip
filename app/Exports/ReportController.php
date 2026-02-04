@@ -46,12 +46,11 @@ class ReportController extends Controller
 
         $reportData = $this->generateReport($filters);
         $summary = $this->generateSummary($filters);
-        $charts = $this->generateCharts($filters);
         
         $fileName = 'maternity_report_' . now()->format('Y_m_d') . '.csv';
 
         return Excel::download(
-            new MaternityReportExport($filters['report_type'], $reportData, $summary, $charts, $filters), 
+            new MaternityReportExport($filters['report_type'], $reportData, $summary, [], $filters), 
             $fileName,
             \Maatwebsite\Excel\Excel::CSV
         );
