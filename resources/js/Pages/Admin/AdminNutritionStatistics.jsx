@@ -358,7 +358,10 @@ export default function AdminNutritionStatistics() {
                             Refresh
                         </button>
                         <button
-                            onClick={() => router.get(route('admin.nutrition.export', filters))}
+                            onClick={() => {
+                                const params = new URLSearchParams(filters).toString();
+                                window.location.href = route('admin.nutrition.export') + '?' + params;
+                            }}
                             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
                         >
                             <Download size={16} />

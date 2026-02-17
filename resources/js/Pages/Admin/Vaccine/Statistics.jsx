@@ -367,7 +367,10 @@ export default function AdminVaccineStatistics({
                             Refresh
                         </button>
                         <button
-                            onClick={() => router.get(route('admin.vaccine.export', filters))}
+                            onClick={() => {
+                                const params = new URLSearchParams(filters).toString();
+                                window.location.href = route('admin.vaccine.export') + '?' + params;
+                            }}
                             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
                         >
                             <Download size={16} />

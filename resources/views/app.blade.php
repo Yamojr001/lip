@@ -3,7 +3,8 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+
+        <title inertia>{{ config('app.name', 'Lafiyar Iyali Project') }}</title>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -11,17 +12,8 @@
 
         <!-- Scripts -->
         @routes
-        
-        @if (app()->environment('production'))
-            <!-- Production assets -->
-            <link rel="stylesheet" href="{{ asset('build/assets/app-BSnb-_Cr.css') }}">
-            <script type="module" src="{{ asset('build/assets/app-QgmvKq8S.js') }}"></script>
-        @else
-            <!-- Development assets -->
-            @viteReactRefresh
-            @vite(['resources/js/app.jsx'])
-        @endif
-        
+        @viteReactRefresh
+        @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])
         @inertiaHead
     </head>
     <body class="font-sans antialiased">

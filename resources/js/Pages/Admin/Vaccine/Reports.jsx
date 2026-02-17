@@ -171,7 +171,10 @@ export default function AdminVaccineReports({ reports, lgas, wards, phcs, months
                                 <span>View Statistics</span>
                             </Link>
                             <button
-                                onClick={() => router.get(route('admin.vaccine.export', localFilters))}
+                                onClick={() => {
+                                    const params = new URLSearchParams(localFilters).toString();
+                                    window.location.href = route('admin.vaccine.export') + '?' + params;
+                                }}
                                 className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center space-x-2"
                             >
                                 <Download className="h-5 w-5" />

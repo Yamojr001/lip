@@ -467,11 +467,9 @@ class PhcStaffController extends Controller
             ], 400);
         }
 
-        $reportType = $request->input('report_type', 'pdf_portrait');
+        $reportType = $request->input('report_type', 'csv');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
-        $includeDetails = $request->boolean('include_details', true);
-        $includeStatistics = $request->boolean('include_statistics', true);
 
         $query = Patient::where('phc_id', $phcId);
 
@@ -480,14 +478,54 @@ class PhcStaffController extends Controller
         }
 
         $patients = $query->with(['lga', 'ward', 'healthFacility'])->get();
-        $stats = $this->getPhcStatistics($phcId);
 
-        $fileName = 'phc_report_' . now()->format('Y_m_d') . '.csv';
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\MaternityReportExport($reportType, $patients->toArray(), $stats, [], ['start_date' => $startDate, 'end_date' => $endDate]),
-            $fileName,
-            \Maatwebsite\Excel\Excel::CSV
-        );
+        $callback = function() use ($patients) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8 compatibility
+            fwrite($file, "\xEF\xBB\xBF");
+            
+            // Write CSV headers
+            fputcsv($file, [
+                'Unique ID', 'Woman Name', 'Age', 'Literacy Status', 'Phone Number',
+                'Community', 'Gravida', 'Parity', 'Date Registered', 'EDD',
+                'ANC Visits', 'ANC4 Completed', 'Place of Delivery', 'Delivery Outcome',
+                'Date of Delivery', 'PNC Completed', 'Health Insurance', 'Delivery Kit',
+                'Alert', 'Remark'
+            ]);
+
+            // Write data rows
+            foreach ($patients as $patient) {
+                fputcsv($file, [
+                    $patient->unique_id ?? '',
+                    $patient->woman_name ?? '',
+                    $patient->age ?? '',
+                    $patient->literacy_status ?? '',
+                    $patient->phone_number ?? '',
+                    $patient->community ?? '',
+                    $patient->gravida ?? '',
+                    $patient->parity ?? '',
+                    $patient->date_of_registration ?? '',
+                    $patient->edd ?? '',
+                    $patient->anc_visits_count ?? 0,
+                    $patient->anc4_completed ? 'Yes' : 'No',
+                    $patient->place_of_delivery ?? '',
+                    $patient->delivery_outcome ?? '',
+                    $patient->date_of_delivery ?? '',
+                    $patient->pnc_completed ? 'Yes' : 'No',
+                    $patient->health_insurance_status ?? '',
+                    $patient->delivery_kits_received ? 'Yes' : 'No',
+                    $patient->alert ?? '',
+                    $patient->remark ?? '',
+                ]);
+            }
+            
+            fclose($file);
+        };
+
+        return response()->streamDownload($callback, 'phc_report_' . now()->format('Y_m_d') . '.csv', [
+            'Content-Type' => 'text/csv',
+        ]);
     }
 
     /**

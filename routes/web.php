@@ -118,11 +118,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::post('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 
         Route::get('/patients', [AdminController::class, 'allPatients'])->name('patients.index');
+        Route::get('/patients/export', [AdminController::class, 'exportPatients'])->name('patients.export');
         Route::get('/patients/{id}', [AdminController::class, 'showPatient'])->name('patients.show');
         Route::get('/patients/{id}/edit', [AdminController::class, 'editPatient'])->name('patients.edit');
         Route::patch('/patients/{id}', [AdminController::class, 'updatePatient'])->name('patients.update');
         Route::delete('/patients/{id}', [AdminController::class, 'destroyPatient'])->name('patients.destroy');
-        Route::get('/patients/export', [AdminController::class, 'exportPatients'])->name('patients.export');
 
         Route::get('/manage-locations', [LgaController::class, 'index'])->name('manage-locations');
         Route::post('/lgas', [LgaController::class, 'store'])->name('lgas.store');
@@ -135,13 +135,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::get('/nutrition-statistics', [NutritionReportController::class, 'adminStatistics'])->name('nutrition.statistics');
         Route::get('/nutrition-export', [NutritionReportController::class, 'export'])->name('nutrition.export');
 
-        // 🩺 ADMIN VACCINE REPORT ROUTES
         Route::get('/vaccine-reports', [AdminVaccineController::class, 'index'])->name('vaccine.reports.index');
         Route::get('/vaccine-statistics', [AdminVaccineController::class, 'statistics'])->name('vaccine.statistics');
         Route::get('/vaccine-reports/{id}', [AdminVaccineController::class, 'show'])->name('vaccine.reports.show');
         Route::get('/vaccine-export', [AdminVaccineController::class, 'export'])->name('vaccine.export');
 
-        // ✅ FIXED ROUTE NAME (NO DUPLICATE "admin.")
         Route::patch(
             '/vaccine-reports/{id}/status',
             [AdminVaccineController::class, 'updateStatus']

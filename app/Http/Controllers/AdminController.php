@@ -1349,9 +1349,6 @@ class AdminController extends Controller
         return $complianceData;
     }
 
-    // ... REST OF YOUR EXISTING METHODS (allPatients, showPatient, editPatient, updatePatient, destroyPatient, exportPatients, etc.)
-    // These remain exactly as you had them in your original controller
-
     /**
      * Display all patients across all facilities (Admin view)
      */
@@ -1617,86 +1614,6 @@ class AdminController extends Controller
 
             fputcsv($file, $headerFields);
 
-            foreach ($patients as $patient) {
-                $row = [
-                    $patient->unique_id, $patient->woman_name, $patient->age, $patient->literacy_status, $patient->phone_number,
-                    $patient->husband_name, $patient->husband_phone, $patient->community, $patient->address,
-                    $patient->lga->name ?? 'N/A', $patient->ward->name ?? 'N/A', $patient->healthFacility->clinic_name ?? 'N/A',
-                    $patient->gravida, $patient->age_of_pregnancy_weeks, $patient->parity,
-                    $patient->date_of_registration, $patient->edd, $patient->fp_interest ? 'Yes' : 'No'
-                ];
-
-                // ANC Data
-                for ($i = 1; $i <= 8; $i++) {
-                    $row = array_merge($row, [
-                        $patient->{"anc_visit_{$i}_date"},
-                        $patient->{"tracked_before_anc{$i}"} ? 'Yes' : 'No',
-                        $patient->{"anc{$i}_paid"} ? 'Yes' : 'No',
-                        $patient->{"anc{$i}_amount"},
-                        $patient->{"anc{$i}_urinalysis"} ? 'Yes' : 'No',
-                        $patient->{"anc{$i}_iron_folate"} ? 'Yes' : 'No',
-                        $patient->{"anc{$i}_mms"} ? 'Yes' : 'No',
-                        $patient->{"anc{$i}_sp"} ? 'Yes' : 'No',
-                        $patient->{"anc{$i}_sba"} ? 'Yes' : 'No',
-                        $patient->{"anc{$i}_hiv_test"},
-                        $patient->{"anc{$i}_hiv_result_received"} ? 'Yes' : 'No',
-                        $patient->{"anc{$i}_hiv_result"}
-                    ]);
-                }
-                $row[] = $patient->additional_anc_count;
-
-                // Delivery
-                $row = array_merge($row, [
-                    $patient->place_of_delivery, $patient->delivery_kits_received ? 'Yes' : 'No',
-                    $patient->type_of_delivery, $patient->complication_if_any, $patient->delivery_outcome,
-                    $patient->mother_alive ? 'Yes' : 'No', $patient->mother_status, $patient->date_of_delivery
-                ]);
-
-                // Postnatal
-                $row = array_merge($row, [
-                    $patient->pnc_visit_1, $patient->pnc_visit_2, $patient->pnc_visit_3
-                ]);
-
-                // Insurance
-                $row = array_merge($row, [
-                    $patient->health_insurance_status, $patient->insurance_type,
-                    $patient->insurance_other_specify, $patient->insurance_satisfaction
-                ]);
-
-                // FP
-                $row = array_merge($row, [
-                    $patient->fp_using ? 'Yes' : 'No', $patient->fp_male_condom ? 'Yes' : 'No',
-                    $patient->fp_female_condom ? 'Yes' : 'No', $patient->fp_pill ? 'Yes' : 'No',
-                    $patient->fp_injectable ? 'Yes' : 'No', $patient->fp_implant ? 'Yes' : 'No',
-                    $patient->fp_iud ? 'Yes' : 'No', $patient->fp_other ? 'Yes' : 'No',
-                    $patient->fp_other_specify
-                ]);
-
-                // Child Info
-                $row = array_merge($row, [
-                    $patient->child_name, $patient->child_dob, $patient->child_sex
-                ]);
-
-                // Vaccines
-                foreach ($vaccines as $vaccine) {
-                    $row[] = $patient->{$vaccine . '_received'} ? 'Yes' : 'No';
-                    $row[] = $patient->{$vaccine . '_date'};
-                }
-
-                // Notes
-                $row = array_merge($row, [
-                    $patient->remark, $patient->comments
-                ]);
-
-                fputcsv($file, $row);
-            }
-            fclose($file);
-        };
-
-        return response()->streamDownload($callback, 'all-patients-' . now()->format('Y-m-d') . '.csv', [
-            'Content-Type' => 'text/csv',
-        ]);
-    }
             // Add data rows
             foreach ($patients as $patient) {
                 $rowData = [
@@ -1779,7 +1696,9 @@ class AdminController extends Controller
             fclose($file);
         };
 
-        return response()->stream($callback, 200, $headers);
+        return response()->streamDownload($callback, 'all-patients-' . now()->format('Y-m-d') . '.csv', [
+            'Content-Type' => 'text/csv',
+        ]);
     }
 
     /**

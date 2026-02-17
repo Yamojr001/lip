@@ -3,10 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Exports\MaternityReportExport;
 use App\Models\Patient;
 use App\Models\Phc;
-use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -45,15 +43,54 @@ class ReportController extends Controller
         ]);
 
         $reportData = $this->generateReport($filters);
-        $summary = $this->generateSummary($filters);
         
-        $fileName = 'maternity_report_' . now()->format('Y_m_d') . '.csv';
+        $callback = function() use ($reportData) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8 compatibility
+            fwrite($file, "\xEF\xBB\xBF");
+            
+            // Write CSV headers
+            fputcsv($file, [
+                'Unique ID', 'Woman Name', 'Age', 'Literacy Status', 'Phone Number',
+                'Community', 'Gravida', 'Parity', 'Date Registered', 'EDD',
+                'ANC Visits', 'ANC4 Completed', 'Place of Delivery', 'Delivery Outcome',
+                'Date of Delivery', 'PNC Completed', 'Health Insurance', 'Delivery Kit',
+                'Alert', 'Remark'
+            ]);
 
-        return Excel::download(
-            new MaternityReportExport($filters['report_type'], $reportData, $summary, [], $filters), 
-            $fileName,
-            \Maatwebsite\Excel\Excel::CSV
-        );
+            // Write data rows
+            foreach ($reportData as $patient) {
+                fputcsv($file, [
+                    $patient['unique_id'] ?? '',
+                    $patient['woman_name'] ?? '',
+                    $patient['age'] ?? '',
+                    $patient['literacy_status'] ?? '',
+                    $patient['phone_number'] ?? '',
+                    $patient['community'] ?? '',
+                    $patient['gravida'] ?? '',
+                    $patient['parity'] ?? '',
+                    $patient['date_of_registration'] ?? '',
+                    $patient['edd'] ?? '',
+                    $patient['anc_visits_count'] ?? 0,
+                    ($patient['anc4_completed'] ?? false) ? 'Yes' : 'No',
+                    $patient['place_of_delivery'] ?? '',
+                    $patient['delivery_outcome'] ?? '',
+                    $patient['date_of_delivery'] ?? '',
+                    ($patient['pnc_completed'] ?? false) ? 'Yes' : 'No',
+                    $patient['health_insurance_status'] ?? '',
+                    ($patient['delivery_kits_received'] ?? false) ? 'Yes' : 'No',
+                    $patient['alert'] ?? '',
+                    $patient['remark'] ?? '',
+                ]);
+            }
+            
+            fclose($file);
+        };
+
+        return response()->streamDownload($callback, 'maternity_report_' . now()->format('Y_m_d') . '.csv', [
+            'Content-Type' => 'text/csv',
+        ]);
     }
 
     private function generateReport($filters)
